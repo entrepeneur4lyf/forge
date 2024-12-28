@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
+    use forge_env::Environment;
     use forge_provider::ModelId;
     use forge_server::{ChatRequest, ChatResponse, Server};
-    use tokio_stream::StreamExt;
-    use forge_env::Environment;
     use regex::Regex;
+    use tokio_stream::StreamExt;
 
     macro_rules! assert {
         ($file_path:expr) => {
