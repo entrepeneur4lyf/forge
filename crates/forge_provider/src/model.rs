@@ -302,6 +302,12 @@ pub struct Model {
 #[serde(transparent)]
 pub struct ModelId(String);
 
+impl ModelId {
+    pub fn new(id: impl Into<String>) -> Self {
+        ModelId(id.into())
+    }
+}
+
 impl Default for ModelId {
     fn default() -> Self {
         ModelId("openai/gpt-3.5-turbo".to_string())

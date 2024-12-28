@@ -33,6 +33,7 @@ impl Executor for ChatCommandExecutor {
     type Action = Action;
     type Error = Error;
     async fn execute(&self, command: &Self::Command) -> ResultStream<Self::Action, Self::Error> {
+        println!("{:?}", command);
         match command {
             Command::FileRead(files) => {
                 let mut responses = vec![];
@@ -69,10 +70,7 @@ impl Executor for ChatCommandExecutor {
                     .await;
                 let is_error = tool_result.is_err();
                 let tool_use_response = Action::ToolResponse(ToolResult {
-                    content: match tool_result {
-                        Ok(content) => content,
-                        Err(e) => serde_json::Value::from(e),
-                    },
+                    content: tool_result.unwrap_or_else(serde_json::Value::from),
                     tool_use_id: tool_use.use_id.clone(),
                     tool_name: tool_use.name.clone(),
                     is_error,

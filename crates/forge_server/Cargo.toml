@@ -31,3 +31,5 @@ pulldown-cmark = { version = "0.9.3" }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
+diffy = "0.4.0"
+insta = "1.41.1"

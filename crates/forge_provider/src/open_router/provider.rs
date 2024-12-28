@@ -81,7 +81,7 @@ impl InnerProvider for OpenRouter {
                     Event::Open => None,
                     Event::Message(event) => {
                         // TODO: print should happen only in debug mode
-                        println!("{}", &event.data);
+                        dbg!("{}", &event.data);
                         // Ignoring wasteful events
                         if ["[DONE]", ""].contains(&event.data.as_str()) {
                             return None;

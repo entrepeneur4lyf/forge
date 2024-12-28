@@ -12,17 +12,24 @@ pub struct File {
 }
 
 pub struct Completion {
-    path: String,
+    path: PathBuf,
 }
 
 impl Completion {
     pub fn new(path: impl Into<String>) -> Self {
-        Self { path: path.into() }
+        // Store instance of PathBuf over a string.
+        // As Sting could be relative.
+
+        // TODO: need better error handling
+        let path = PathBuf::from(path.into())
+            .canonicalize()
+            .expect("Failed to canonicalize path");
+        Self { path }
     }
 
     pub async fn list(&self) -> Result<Vec<File>> {
-        let cwd = PathBuf::from(self.path.clone()); // Use the current working directory
-        let walker = Walker::new(cwd);
+        // Use the current working directory
+        let walker = Walker::new(self.path.clone());
 
         let files = walker.get().await?;
         Ok(files
