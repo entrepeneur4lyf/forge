@@ -75,7 +75,7 @@ mod tests {
     #[tokio::test]
     async fn test_rs_patches() {
         let file_paths = vec!["tests/fixtures/non_idiomatic.rs"];
-        let _resp = chat("Convert the code to idiomatic Rust code. Do not document code. Make sure all idiomatic code is in single line.", &file_paths).await;
+        let _resp = chat("Refactor the following Rust code to use idiomatic constructs like iterators and functional programming patterns. Avoid explicit loops and make the code concise while preserving its functionality.", &file_paths).await;
         assert!(file_paths);
     }
 }
