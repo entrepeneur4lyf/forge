@@ -30,27 +30,27 @@ where
     }
 }
 
-struct ToolDefinition {
+struct Executor {
     executable: Box<dyn ToolTrait<Input = Value, Output = Value> + Send + Sync + 'static>,
-    tool: Tool,
+    tool: ToolDefinition,
 }
 
 pub struct ToolEngine {
-    tools: HashMap<ToolName, ToolDefinition>,
+    tools: HashMap<ToolName, Executor>,
 }
 
 ///
 /// Refer to the specification over here:
 /// https://glama.ai/blog/2024-11-25-model-context-protocol-quickstart#server
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Tool {
+pub struct ToolDefinition {
     pub name: ToolName,
     pub description: String,
     pub input_schema: RootSchema,
     pub output_schema: Option<RootSchema>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ToolName(String);
 
@@ -80,7 +80,7 @@ impl ToolEngine {
         output
     }
 
-    pub fn list(&self) -> Vec<Tool> {
+    pub fn list(&self) -> Vec<ToolDefinition> {
         self.tools.values().map(|tool| tool.tool.clone()).collect()
     }
 }
@@ -94,7 +94,7 @@ impl ToolImporter {
         Self { env }
     }
 
-    fn import<T>(&self, tool: T) -> (ToolName, ToolDefinition)
+    fn import<T>(&self, tool: T) -> (ToolName, Executor)
     where
         T: ToolTrait + Description + Send + Sync + 'static,
         T::Input: serde::de::DeserializeOwned + JsonSchema,
@@ -125,7 +125,7 @@ impl ToolImporter {
         )
         .unwrap();
 
-        let tool = Tool {
+        let tool = ToolDefinition {
             name: ToolName(name.clone()),
             description: self.env.render(T::description()).unwrap_or_else(|err| {
                 panic!(
@@ -137,16 +137,15 @@ impl ToolImporter {
             output_schema: Some(output),
         };
 
-        (ToolName(name), ToolDefinition { executable, tool })
+        (ToolName(name), Executor { executable, tool })
     }
 }
 
-impl Default for ToolEngine {
-    fn default() -> Self {
-        let ctx = Environment::from_env();
-        let importer = ToolImporter::new(ctx);
+impl ToolEngine {
+    pub fn new(env: Environment) -> Self {
+        let importer = ToolImporter::new(env);
 
-        let tools: HashMap<ToolName, ToolDefinition> = HashMap::from([
+        let tools: HashMap<ToolName, Executor> = HashMap::from([
             importer.import(FSRead),
             importer.import(FSWrite),
             importer.import(FSList),
@@ -171,32 +170,23 @@ mod test {
     use crate::think::Think;
     use crate::{FSFileInfo, FSSearch};
 
-    fn new_importer() -> ToolImporter {
-        ToolImporter::new(Environment {
-            cwd: Some("/Users/test".into()),
-            os: Some("TestOS".into()),
-            shell: Some("ZSH".into()),
-            home: Some("/Users".into()),
-        })
+    fn test_importer() -> ToolImporter {
+        ToolImporter::new(test_env())
     }
 
-    impl ToolEngine {
-        fn build(importer: ToolImporter) -> Self {
-            let tools: HashMap<ToolName, ToolDefinition> = HashMap::from([
-                importer.import(FSRead),
-                importer.import(FSWrite),
-                importer.import(FSList),
-                importer.import(FSSearch),
-                importer.import(FSFileInfo),
-                importer.import(Think::default()),
-            ]);
-            Self { tools }
+    fn test_env() -> Environment {
+        Environment {
+            cwd: "/Users/test".into(),
+            os: "TestOS".into(),
+            shell: "ZSH".into(),
+            home: Some("/Users".into()),
+            files: vec!["test.txt".into()],
         }
     }
 
     #[test]
     fn test_id() {
-        let importer = new_importer();
+        let importer = test_importer();
 
         assert!(importer.import(FSRead).0.into_string().ends_with("fs_read"));
         assert!(importer
@@ -219,7 +209,7 @@ mod test {
 
     #[test]
     fn test_description() {
-        let tool_engine = ToolEngine::build(new_importer());
+        let tool_engine = ToolEngine::new(test_env());
 
         for tool in tool_engine.list() {
             let tool_str = serde_json::to_string_pretty(&tool).unwrap();

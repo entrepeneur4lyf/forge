@@ -1,15 +1,15 @@
 use derive_more::derive::From;
 use derive_setters::Setters;
-use forge_tool::{Tool, ToolName};
+use forge_tool::{ToolDefinition, ToolName};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{Error, Result};
 
-#[derive(Default, Setters, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Request {
     pub messages: Vec<AnyMessage>,
-    pub tools: Vec<Tool>,
+    pub tools: Vec<ToolDefinition>,
     pub tool_result: Vec<ToolResult>,
     pub model: ModelId,
 }
@@ -24,7 +24,7 @@ impl Request {
         }
     }
 
-    pub fn add_tool(mut self, tool: impl Into<Tool>) -> Self {
+    pub fn add_tool(mut self, tool: impl Into<ToolDefinition>) -> Self {
         self.add_tool_mut(tool);
         self
     }
@@ -39,7 +39,7 @@ impl Request {
         self
     }
 
-    pub fn extend_tools(mut self, tools: Vec<impl Into<Tool>>) -> Self {
+    pub fn extend_tools(mut self, tools: Vec<impl Into<ToolDefinition>>) -> Self {
         self.extend_tools_mut(tools);
         self
     }
@@ -54,8 +54,8 @@ impl Request {
         self
     }
 
-    pub fn add_tool_mut(&mut self, tool: impl Into<Tool>) {
-        let tool: Tool = tool.into();
+    pub fn add_tool_mut(&mut self, tool: impl Into<ToolDefinition>) {
+        let tool: ToolDefinition = tool.into();
         self.tools.push(tool);
     }
 
@@ -67,7 +67,7 @@ impl Request {
         self.messages.push(message.into());
     }
 
-    pub fn extend_tools_mut(&mut self, tools: Vec<impl Into<Tool>>) {
+    pub fn extend_tools_mut(&mut self, tools: Vec<impl Into<ToolDefinition>>) {
         self.tools.extend(tools.into_iter().map(Into::into));
     }
 
@@ -81,11 +81,13 @@ impl Request {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct System;
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct User;
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct Assistant;
 
 pub trait Role {
@@ -110,7 +112,7 @@ impl Role for Assistant {
     }
 }
 
-#[derive(Setters, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Message<R: Role> {
     pub content: String,
     #[serde(skip)]
@@ -150,7 +152,7 @@ impl Message<Assistant> {
     }
 }
 
-#[derive(Debug, Clone, From, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
 pub enum AnyMessage {
     System(Message<System>),
     User(Message<User>),
@@ -175,14 +177,22 @@ impl AnyMessage {
     }
 }
 
-#[derive(Setters, Debug, Clone)]
+#[derive(Clone, Debug, Default, Setters)]
+#[setters(into, strip_option)]
 pub struct Response {
     pub message: Message<Assistant>,
     pub tool_use: Vec<ToolUsePart>,
     pub finish_reason: Option<FinishReason>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Response {
+    pub fn finish_reason_opt(mut self, reason: Option<FinishReason>) -> Self {
+        self.finish_reason = reason;
+        self
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum FinishReason {
     ToolUse,
     EndTurn,
@@ -220,7 +230,7 @@ impl Response {
 }
 
 /// Unique identifier for a using a tool
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct UseId(pub(crate) String);
 
@@ -232,7 +242,8 @@ impl<A: ToString> From<A> for UseId {
 
 /// Contains a part message for using a tool. This is received as a part of the
 /// response from the model only when streaming is enabled.
-#[derive(Setters, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[setters(strip_option, into)]
 pub struct ToolUsePart {
     /// Optional unique identifier that represents a single call to the tool
     /// use. NOTE: Not all models support a call ID for using a tool
@@ -246,7 +257,8 @@ pub struct ToolUsePart {
 
 /// Contains the full information about using a tool. This is received as a part
 /// of the response from the model when streaming is disabled.
-#[derive(Setters, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[setters(strip_option, into)]
 pub struct ToolUse {
     pub name: ToolName,
     pub use_id: Option<UseId>,
@@ -283,7 +295,7 @@ impl ToolUse {
     }
 }
 
-#[derive(Setters, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
 pub struct ToolResult {
     pub tool_name: ToolName,
     pub tool_use_id: Option<UseId>,
@@ -291,14 +303,14 @@ pub struct ToolResult {
     pub is_error: bool,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Serialize, Setters)]
 pub struct Model {
     pub id: ModelId,
     pub name: String,
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(transparent)]
 pub struct ModelId(String);
 

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use forge_env::Environment;
 use forge_provider::{Message, Model, ModelId, Provider, Request, Response};
-use forge_tool::{Tool, ToolEngine};
+use forge_tool::{ToolDefinition, ToolEngine};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
@@ -19,16 +19,16 @@ pub struct Server {
     tools: Arc<ToolEngine>,
     completions: Arc<Completion>,
     runtime: Arc<ApplicationRuntime<App>>,
-
+    env: Environment,
     api_key: String,
 }
 
 impl Server {
-    pub fn new(cwd: impl Into<String>, api_key: impl Into<String>) -> Server {
-        let tools = ToolEngine::default();
+    pub fn new(env: Environment, api_key: impl Into<String>) -> Server {
+        let tools = ToolEngine::new(env.clone());
 
-        let env_ctx = Environment::from_env();
-        let system_prompt = env_ctx
+        let system_prompt = env
+            .clone()
             .render(include_str!("./prompts/system.md"))
             .expect("Failed to render system prompt");
 
@@ -36,10 +36,11 @@ impl Server {
             .add_message(Message::system(system_prompt))
             .tools(tools.list());
 
-        let cwd: String = cwd.into();
+        let cwd: String = env.cwd.clone();
         let api_key: String = api_key.into();
 
         Self {
+            env,
             provider: Arc::new(Provider::open_router(api_key.clone(), None)),
             tools: Arc::new(tools),
             completions: Arc::new(Completion::new(cwd.clone())),
@@ -52,7 +53,7 @@ impl Server {
         self.completions.list().await
     }
 
-    pub fn tools(&self) -> Vec<Tool> {
+    pub fn tools(&self) -> Vec<ToolDefinition> {
         self.tools.list()
     }
 
@@ -66,7 +67,7 @@ impl Server {
 
     pub async fn chat(&self, chat: ChatRequest) -> Result<impl Stream<Item = ChatResponse> + Send> {
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
-        let executor = ChatCommandExecutor::new(tx, self.api_key.clone());
+        let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
         let runtime = self.runtime.clone();
         let message = format!("##Task\n{}", chat.message);
 
