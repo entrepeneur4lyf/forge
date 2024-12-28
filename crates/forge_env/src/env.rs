@@ -19,6 +19,7 @@ pub struct Environment {
 impl Environment {
     pub async fn from_env() -> Result<Self> {
         let cwd = std::env::current_dir()?;
+        println!("{:?}", cwd);
         let files = match Walker::new(cwd.clone()).get().await {
             Ok(files) => files
                 .into_iter()

@@ -10,7 +10,7 @@ mod tests {
             for file_path in $file_path {
                 let snap_name = snap_name(file_path);
                 dbg!(&snap_name);
-                let file_path = format!("{}/tests/{}", env!("CARGO_MANIFEST_DIR"), file_path);
+                let file_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), file_path);
                 let a = read(format!("{}", file_path));
                 let b = read(file_path.replace(".md", "_updated.md"));
 
@@ -23,6 +23,7 @@ mod tests {
 
                 insta::assert_snapshot!(snap_name, String::from_utf8(patch_output).unwrap());
             }
+        delete_updated_files($file_path);
         };
     }
 
@@ -46,7 +47,7 @@ mod tests {
     fn delete_updated_files<T: AsRef<str>>(file_path: &[T]) {
         for file in file_path {
             let file = format!(
-                "{}/tests/{}",
+                "{}/{}",
                 env!("CARGO_MANIFEST_DIR"),
                 file.as_ref().replace(".md", "_updated.md")
             );
@@ -71,10 +72,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_md_patches() {
-        let file_paths = vec!["fixtures/quote.md", "fixtures/quote1.md"];
+        let file_paths = vec!["tests/fixtures/quote.md", "tests/fixtures/quote1.md"];
         let _resp = chat("Fix the spelling mistakes", &file_paths).await;
-        delete_updated_files(&file_paths);
 
-        assert!(file_paths);
+        assert!(&file_paths);
     }
 }
