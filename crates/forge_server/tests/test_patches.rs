@@ -3,6 +3,7 @@ mod tests {
     use forge_provider::ModelId;
     use forge_server::{ChatRequest, ChatResponse, Server};
     use tokio_stream::StreamExt;
+    use forge_env::Environment;
 
     macro_rules! assert {
         ($file_path:expr) => {
@@ -31,9 +32,10 @@ mod tests {
         path.replace("/", "_").replace(".", "_")
     }
 
-    fn server() -> Server {
+    async fn server() -> Server {
+        let env = Environment::from_env().await.unwrap();
         let api_key = std::env::var("FORGE_KEY").expect("FORGE_KEY must be set");
-        Server::new("./tests", api_key)
+        Server::new(env, api_key)
     }
 
     fn read<T: AsRef<str>>(path: T) -> String {
@@ -54,7 +56,7 @@ mod tests {
 
     async fn chat<T: AsRef<str>>(base: T, file_paths: &[T]) -> Vec<ChatResponse> {
         delete_updated_files(file_paths);
-        let server = server();
+        let server = server().await;
         let req = ChatRequest::default()
             .message(format!("{} in the file(s) located at {} .Do not change the input file directly, create another file with changes within the same dir as the original file and name it <file_name>_updated.ext", base.as_ref(), file_paths.iter().map(|f| f.as_ref()).collect::<Vec<&str>>().join(", ")))
             .model(ModelId::new("anthropic/claude-3.5-haiku"));
