@@ -3,15 +3,18 @@ mod tests {
     use forge_provider::ModelId;
     use forge_server::{ChatRequest, ChatResponse, Server};
     use tokio_stream::StreamExt;
+    use forge_env::Environment;
+    use regex::Regex;
 
     macro_rules! assert {
         ($file_path:expr) => {
-            for file_path in $file_path {
+            for file_path in $file_path.iter() {
                 let snap_name = snap_name(file_path);
                 dbg!(&snap_name);
-                let file_path = format!("{}/tests/{}", env!("CARGO_MANIFEST_DIR"), file_path);
+                let file_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), file_path);
                 let a = read(format!("{}", file_path));
-                let b = read(file_path.replace(".md", "_updated.md"));
+                let re = Regex::new(r"\.(\w+)$").unwrap();
+                let b = read(re.replace(&file_path, "_updated.$1"));
 
                 let patch = diffy::create_patch(&a, &b);
 
@@ -22,6 +25,7 @@ mod tests {
 
                 insta::assert_snapshot!(snap_name, String::from_utf8(patch_output).unwrap());
             }
+            delete_updated_files(&$file_path);
         };
     }
 
@@ -31,9 +35,10 @@ mod tests {
         path.replace("/", "_").replace(".", "_")
     }
 
-    fn server() -> Server {
+    async fn server() -> Server {
+        let env = Environment::from_env().await.unwrap();
         let api_key = std::env::var("FORGE_KEY").expect("FORGE_KEY must be set");
-        Server::new("./tests", api_key)
+        Server::new(env, api_key)
     }
 
     fn read<T: AsRef<str>>(path: T) -> String {
@@ -54,7 +59,7 @@ mod tests {
 
     async fn chat<T: AsRef<str>>(base: T, file_paths: &[T]) -> Vec<ChatResponse> {
         delete_updated_files(file_paths);
-        let server = server();
+        let server = server().await;
         let req = ChatRequest::default()
             .message(format!("{} in the file(s) located at {} .Do not change the input file directly, create another file with changes within the same dir as the original file and name it <file_name>_updated.ext", base.as_ref(), file_paths.iter().map(|f| f.as_ref()).collect::<Vec<&str>>().join(", ")))
             .model(ModelId::new("anthropic/claude-3.5-haiku"));
@@ -68,11 +73,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_md_patches() {
-        let file_paths = vec!["fixtures/quote.md", "fixtures/quote1.md"];
-        let _resp = chat("Fix the spelling mistakes", &file_paths).await;
-        delete_updated_files(&file_paths);
-
+    async fn test_rs_patches() {
+        let file_paths = vec!["tests/fixtures/non_idiomatic.rs"];
+        let _resp = chat("Convert the code to idiomatic Rust code. Do not document code. Make sure all idiomatic code is in single line.", &file_paths).await;
         assert!(file_paths);
     }
 }
