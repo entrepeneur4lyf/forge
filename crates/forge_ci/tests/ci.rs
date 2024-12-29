@@ -1,5 +1,5 @@
-use gh_workflow_tailcall::gh_workflow::{Cargo, Env, Job, Level, Permissions, Run, Step, Strategy};
 use gh_workflow_tailcall::gh_workflow::toolchain::Toolchain;
+use gh_workflow_tailcall::gh_workflow::{Cargo, Env, Job, Level, Permissions, Run, Step, Strategy};
 use gh_workflow_tailcall::*;
 use serde_json::json;
 
