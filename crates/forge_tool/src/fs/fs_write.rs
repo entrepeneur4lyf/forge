@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -46,7 +47,11 @@ impl ToolTrait for FSWrite {
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let mut path = input.path;
         if let Some(parent) = &self.parent {
-            path = PathBuf::from(parent).join(path).to_str().ok_or("Invalid path".to_string())?.to_string();
+            path = PathBuf::from(parent)
+                .join(path)
+                .to_str()
+                .ok_or("Invalid path".to_string())?
+                .to_string();
         }
 
         tokio::fs::write(&path, &input.content)

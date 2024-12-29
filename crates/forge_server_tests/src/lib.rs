@@ -2,13 +2,12 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
-use regex::Regex;
-use tokio_stream::StreamExt;
-
 use forge_env::Environment;
 use forge_provider::ModelId;
 use forge_server::{ChatRequest, ChatResponse, Server};
 use forge_walker::Walker;
+use regex::Regex;
+use tokio_stream::StreamExt;
 
 pub struct TestServer {
     pub server: Server,
@@ -23,22 +22,23 @@ impl TestServer {
         let test_dir = test_dir.as_ref();
         let absolute_path = PathBuf::from(".").canonicalize()?.join(test_dir);
 
-        let env = Environment::from_env(Some(absolute_path.clone())).await.map_err(|e| anyhow!(e))?;
+        let env = Environment::from_env(Some(absolute_path.clone()))
+            .await
+            .map_err(|e| anyhow!(e))?;
         let api_key = std::env::var("FORGE_KEY").map_err(|_| anyhow!("FORGE_KEY must be set"))?;
         let model = std::env::var("FORGE_MODEL").map_err(|_| anyhow!("FORGE_MODEL must be set"))?;
-        Ok(
-            Self {
-                server: Server::new(env.clone(), api_key),
-                model,
-                env,
-                absolute_path,
-                test_dir: test_dir.into(),
-            }
-        )
+        Ok(Self {
+            server: Server::new(env.clone(), api_key),
+            model,
+            env,
+            absolute_path,
+            test_dir: test_dir.into(),
+        })
     }
     pub async fn chat<T: AsRef<str>>(&self, prompt: T) -> Vec<ChatResponse> {
         let file_paths = &self.env.files;
-        let files = file_paths.iter()
+        let files = file_paths
+            .iter()
             .map(|v| self.test_dir.join(v).to_str().unwrap().to_string())
             .collect::<Vec<_>>();
 
@@ -51,8 +51,7 @@ impl TestServer {
             .message(edited_prompt)
             .model(ModelId::new(self.model.clone()));
 
-        self.
-            server
+        self.server
             .chat(req)
             .await
             .unwrap()
@@ -67,28 +66,40 @@ impl TestServer {
     pub async fn create_patches(&self) -> anyhow::Result<String> {
         let updated_path_re = Regex::new(r"_updated\.(\w+)$").unwrap();
         let re = Regex::new(r"\.(\w+)$").unwrap();
-        let mut files =  match Walker::new(self.absolute_path.clone()).get().await {
+        let mut files = match Walker::new(self.absolute_path.clone()).get().await {
             Ok(files) => files
                 .into_iter()
                 .filter(|f| !f.is_dir)
-                .map(|f| self.absolute_path.join(f.path).to_str().unwrap().to_string())
+                .map(|f| {
+                    self.absolute_path
+                        .join(f.path)
+                        .to_str()
+                        .unwrap()
+                        .to_string()
+                })
                 .collect(),
             Err(_) => vec![],
         };
 
         let mut map = HashMap::new();
         for file in files.iter() {
-            let content = std::fs::read_to_string(file).map_err(|_| anyhow!("{} does not exist", file))?;
+            let content =
+                std::fs::read_to_string(file).map_err(|_| anyhow!("{} does not exist", file))?;
             map.insert(file.clone(), content);
         }
 
-        files = files.into_iter().filter(|f| !updated_path_re.is_match(f)).collect();
+        files.retain(|f| !updated_path_re.is_match(f));
 
         let mut patches = vec![];
         for file in files {
             let updated_file = re.replace(&file, "_updated.$1").to_string();
 
-            let patch = diffy::create_patch(map.get(&file).ok_or(anyhow!("File not found (this should never happen)"))?, map.get(&updated_file).ok_or(anyhow!("Updated file {} not found", updated_file))?);
+            let patch = diffy::create_patch(
+                map.get(&file)
+                    .ok_or(anyhow!("File not found (this should never happen)"))?,
+                map.get(&updated_file)
+                    .ok_or(anyhow!("Updated file {} not found", updated_file))?,
+            );
 
             let mut patch_output = vec![];
             diffy::PatchFormatter::new()
@@ -97,11 +108,23 @@ impl TestServer {
 
             let patch_output = String::from_utf8(patch_output)?;
 
-            patches.push((PathBuf::from(file).strip_prefix(&self.absolute_path).unwrap().to_str().unwrap().to_string(), patch_output));
+            patches.push((
+                PathBuf::from(file)
+                    .strip_prefix(&self.absolute_path)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+                patch_output,
+            ));
             Self::delete_file(&updated_file);
         }
 
-        let patches = patches.into_iter().map(|(file, patch)| format!("{}:\n{}", file, patch)).collect::<Vec<_>>().join("----------------\n");
+        let patches = patches
+            .into_iter()
+            .map(|(file, patch)| format!("{}:\n{}", file, patch))
+            .collect::<Vec<_>>()
+            .join("----------------\n");
 
         Ok(patches)
     }
