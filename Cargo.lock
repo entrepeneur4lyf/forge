@@ -713,7 +713,6 @@ dependencies = [
  "colorize",
  "derive_more",
  "derive_setters",
- "diffy",
  "dotenv",
  "forge_env",
  "forge_prompt",
@@ -722,10 +721,8 @@ dependencies = [
  "forge_walker",
  "futures",
  "inquire",
- "insta",
  "pretty_assertions",
  "pulldown-cmark",
- "regex",
  "serde",
  "serde_json",
  "tailcall-valid",
@@ -734,6 +731,22 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "forge_server_tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "diffy",
+ "forge_env",
+ "forge_provider",
+ "forge_server",
+ "forge_walker",
+ "insta",
+ "regex",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]

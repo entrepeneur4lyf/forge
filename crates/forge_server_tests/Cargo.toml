@@ -1,0 +1,18 @@
+[package]
+name = "forge_server_tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forge_server = { path = "../forge_server" }
+forge_provider = { path = "../forge_provider" }
+forge_env = { path = "../forge_env" }
+anyhow = "1.0.95"
+forge_walker = { path = "../forge_walker" }
+regex = "1.11.1"
+diffy = "0.4.0"
+tokio-stream = "0.1.17"
+
+[dev-dependencies]
+tokio = {version = "1.42.0", features = ["macros"]}
+insta = "1.41.1"

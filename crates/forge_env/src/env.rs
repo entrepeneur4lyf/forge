@@ -1,3 +1,4 @@
+use std::path::{PathBuf, Path};
 use derive_setters::Setters;
 use forge_walker::Walker;
 use handlebars::Handlebars;
@@ -17,8 +18,8 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub async fn from_env() -> Result<Self> {
-        let cwd = std::env::current_dir()?;
+    pub async fn from_env<P: AsRef<Path>>(cwd: Option<P>) -> Result<Self> {
+        let cwd = cwd.map(|v| PathBuf::from(v.as_ref())).unwrap_or(std::env::current_dir()?);
         let files = match Walker::new(cwd.clone()).get().await {
             Ok(files) => files
                 .into_iter()

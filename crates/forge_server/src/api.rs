@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 const SERVER_PORT: u16 = 8080;
@@ -43,7 +44,7 @@ async fn context_html_handler(State(state): State<Arc<Server>>) -> Html<String> 
 impl API {
     pub async fn launch(self) -> Result<()> {
         tracing_subscriber::fmt().init();
-        let env = Environment::from_env().await?;
+        let env = Environment::from_env::<PathBuf>(None).await?;
         let state = Arc::new(Server::new(env, self.api_key));
 
         if dotenv::dotenv().is_ok() {

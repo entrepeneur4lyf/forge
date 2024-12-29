@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -26,8 +27,16 @@ pub struct FSWriteInput {
 ///   COMPLETE intended content of the file, without any truncation or
 ///   omissions. You MUST include ALL parts of the file, even if they haven't
 ///   been modified.
-#[derive(DescriptionDerive)]
-pub struct FSWrite;
+#[derive(DescriptionDerive, Default)]
+pub struct FSWrite {
+    parent: Option<String>,
+}
+
+impl FSWrite {
+    pub fn new(parent: String) -> Self {
+        Self { parent: Some(parent) }
+    }
+}
 
 #[async_trait::async_trait]
 impl ToolTrait for FSWrite {
@@ -35,10 +44,15 @@ impl ToolTrait for FSWrite {
     type Output = FSWriteOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        tokio::fs::write(&input.path, &input.content)
+        let mut path = input.path;
+        if let Some(parent) = &self.parent {
+            path = PathBuf::from(parent).join(path).to_str().ok_or("Invalid path".to_string())?.to_string();
+        }
+
+        tokio::fs::write(&path, &input.content)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(FSWriteOutput { path: input.path, content: input.content })
+        Ok(FSWriteOutput { path, content: input.content })
     }
 }
 
@@ -60,7 +74,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
 
-        let fs_write = FSWrite;
+        let fs_write = FSWrite::default();
         let output = fs_write
             .call(FSWriteInput {
                 path: file_path.to_string_lossy().to_string(),

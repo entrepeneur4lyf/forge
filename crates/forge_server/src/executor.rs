@@ -38,7 +38,6 @@ impl Executor for ChatCommandExecutor {
     type Action = Action;
     type Error = Error;
     async fn execute(&self, command: &Self::Command) -> ResultStream<Self::Action, Self::Error> {
-        println!("{:?}", command);
         match command {
             Command::FileRead(files) => {
                 let mut responses = vec![];

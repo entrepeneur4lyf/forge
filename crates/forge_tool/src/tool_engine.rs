@@ -147,7 +147,7 @@ impl ToolEngine {
 
         let tools: HashMap<ToolName, Executor> = HashMap::from([
             importer.import(FSRead),
-            importer.import(FSWrite),
+            importer.import(FSWrite::new(importer.env.cwd.clone())),
             importer.import(FSList),
             importer.import(FSSearch),
             importer.import(FSFileInfo),
