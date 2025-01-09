@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
 use derive_setters::Setters;
-use forge_domain::{
-    Context, ContextMessage, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull,
-    ToolName, ToolResult, ToolService,
-};
+use futures::StreamExt;
+use forge_domain::{ChatCompletionMessage, Context, ContextMessage, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull, ToolCallPart, ToolName, ToolResult, ToolService};
 use forge_provider::ProviderService;
 use serde::Serialize;
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::StreamExt;
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
@@ -56,87 +52,82 @@ impl Live {
     /// Executes the chat workflow until the task is complete.
     async fn chat_workflow(
         &self,
-        mut request: Context,
-        tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
-    ) -> Result<()> {
-        loop {
-            let mut tool_call_parts = Vec::new();
-            let mut some_tool_call = None;
-            let mut some_tool_result = None;
-            let mut assistant_message_content = String::new();
+        request: Context,
+    ) -> ResultStream<ChatResponse, Error> {
+        let that = self.clone();
 
-            let mut response = self.provider.chat(request.clone()).await?;
+        let stream = futures::stream::unfold(
+            (Some(request), Vec::new(), None, None, String::new()),
+            move |(maybe_request, mut tool_call_parts, mut some_tool_call, mut some_tool_result, mut assistant_message_content)| {
+                let that = that.clone();
+                async move {
+                    let mut request = maybe_request?;
+                    let mut results = vec![];
 
-            while let Some(chunk) = response.next().await {
-                let message = chunk?;
+                    let mut response = that.provider.chat(request.clone()).await.unwrap();
+                    while let Some(chunk) = response.next().await {
+                        let message = chunk.unwrap();
 
-                if let Some(ref content) = message.content {
-                    if !content.is_empty() {
-                        assistant_message_content.push_str(content.as_str());
-                        tx.send(Ok(ChatResponse::Text(content.as_str().to_string())))
-                            .await
-                            .unwrap();
-                    }
-                }
-
-                if !message.tool_call.is_empty() {
-                    if let Some(ToolCall::Part(tool_part)) = message.tool_call.first() {
-                        // Send tool call detection on first part
-                        if tool_call_parts.is_empty() {
-                            if let Some(tool_name) = &tool_part.name {
-                                tx.send(Ok(ChatResponse::ToolCallDetected(tool_name.clone())))
-                                    .await
-                                    .unwrap();
+                        if let Some(ref content) = message.content {
+                            if !content.is_empty() {
+                                assistant_message_content.push_str(content.as_str());
+                                results.push(Ok(ChatResponse::Text(content.as_str().to_string())));
                             }
                         }
-                        // Add to parts and send the part itself
-                        tool_call_parts.push(tool_part.clone());
-                        tx.send(Ok(ChatResponse::ToolCallArgPart(
-                            tool_part.arguments_part.clone(),
-                        )))
-                        .await
-                        .unwrap();
+                        if !message.tool_call.is_empty() {
+                            if let Some(ToolCall::Part(tool_part)) = message.tool_call.first() {
+                                // Send tool call detection on first part
+                                if tool_call_parts.is_empty() {
+                                    if let Some(tool_name) = &tool_part.name {
+                                        results.push(Ok(ChatResponse::ToolCallDetected(tool_name.clone())));
+                                    }
+                                }
+                                // Add to parts and send the part itself
+                                tool_call_parts.push(tool_part.clone());
+                                results.push(Ok(ChatResponse::ToolCallArgPart(
+                                    tool_part.arguments_part.clone(),
+                                )));
+                            }
+                        }
+
+                        if let Some(FinishReason::ToolCalls) = message.finish_reason {
+                            // TODO: drop clone from here.
+                            let tool_call = ToolCallFull::try_from_parts(&tool_call_parts).unwrap();
+                            some_tool_call = Some(tool_call.clone());
+
+                            results.push(Ok(ChatResponse::ToolCallStart(tool_call.clone())));
+
+                            let tool_result = that.tool.call(tool_call).await;
+
+                            some_tool_result = Some(tool_result.clone());
+
+                            // send the tool use end message.
+                            results.push(Ok(ChatResponse::ToolCallEnd(tool_result)));
+                        }
                     }
+
+                    request = request.add_message(ContextMessage::assistant(
+                        assistant_message_content.clone(),
+                        some_tool_call.clone(),
+                    ));
+
+                    results.push(Ok(ChatResponse::ModifyContext(request.clone())));
+
+                    if let Some(tool_result) = some_tool_result.clone() {
+                        request = request.add_message(ContextMessage::ToolMessage(tool_result));
+                        results.push(Ok(ChatResponse::ModifyContext(request.clone())));
+                    } else {
+                        return Some((futures::stream::iter(results), (None, Vec::new(), None, None, String::new())));
+                    }
+
+                    Some((futures::stream::iter(results), (Some(request), Vec::new(), None, None, String::new())))
                 }
+            },
+        )
+            .flatten()
+            .chain(futures::stream::once(async { Ok(ChatResponse::Complete) }));
 
-                if let Some(FinishReason::ToolCalls) = message.finish_reason {
-                    // TODO: drop clone from here.
-                    let tool_call = ToolCallFull::try_from_parts(&tool_call_parts)?;
-                    some_tool_call = Some(tool_call.clone());
-
-                    tx.send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
-                        .await
-                        .unwrap();
-
-                    let tool_result = self.tool.call(tool_call).await;
-
-                    some_tool_result = Some(tool_result.clone());
-
-                    // send the tool use end message.
-                    tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
-                        .await
-                        .unwrap();
-                }
-            }
-
-            request = request.add_message(ContextMessage::assistant(
-                assistant_message_content.clone(),
-                some_tool_call,
-            ));
-
-            tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
-                .await
-                .unwrap();
-
-            if let Some(tool_result) = some_tool_result {
-                request = request.add_message(ContextMessage::ToolMessage(tool_result));
-                tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
-                    .await
-                    .unwrap();
-            } else {
-                break Ok(());
-            }
-        }
+        Ok(Box::pin(stream))
     }
 }
 
@@ -145,7 +136,6 @@ impl ChatService for Live {
     async fn chat(&self, chat: ChatRequest, request: Context) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let request = request
             .set_system_message(system_prompt)
@@ -155,19 +145,7 @@ impl ChatService for Live {
 
         let that = self.clone();
 
-        tokio::spawn(async move {
-            // TODO: simplify this match.
-            match that.chat_workflow(request, tx.clone()).await {
-                Ok(_) => {}
-                Err(e) => tx.send(Err(e)).await.unwrap(),
-            };
-
-            tx.send(Ok(ChatResponse::Complete)).await.unwrap();
-
-            drop(tx);
-        });
-
-        Ok(Box::pin(ReceiverStream::new(rx)))
+        that.chat_workflow(request).await
     }
 }
 
@@ -346,6 +324,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_messages() {
+        tracing_subscriber::fmt::init();
         let actual = Fixture::default()
             .assistant_responses(vec![vec![ChatCompletionMessage::assistant(Content::full(
                 "Yes sure, tell me what you need.",
