@@ -1,15 +1,30 @@
 use std::sync::Arc;
+use std::vec::IntoIter;
 
 use derive_setters::Setters;
-use futures::StreamExt;
-use forge_domain::{ChatCompletionMessage, Context, ContextMessage, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull, ToolCallPart, ToolName, ToolResult, ToolService};
+use forge_domain::{
+    Context, ContextMessage, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull,
+    ToolCallPart, ToolName, ToolResult, ToolService,
+};
 use forge_provider::ProviderService;
+use futures::StreamExt;
 use serde::Serialize;
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
 use super::{ConversationId, Service};
-use crate::{Errata, Error, Result};
+use crate::{Errata, Error};
+
+type ReturnTy = Option<(
+    futures::stream::Iter<IntoIter<Result<ChatResponse, Error>>>,
+    (
+        Option<Context>,
+        Vec<ToolCallPart>,
+        Option<ToolCallFull>,
+        Option<ToolResult>,
+        String,
+    ),
+)>;
 
 #[async_trait::async_trait]
 pub trait ChatService: Send + Sync {
@@ -49,83 +64,129 @@ impl Live {
         Self { provider, system_prompt, tool, user_prompt }
     }
 
+    #[inline]
+    /// Adds the results vec for next iteration
+    /// If request is None, it means the chat is complete/errored out.
+    fn return_statement(
+        results: Vec<Result<ChatResponse, Error>>,
+        request: Option<Context>,
+    ) -> ReturnTy {
+        Some((
+            futures::stream::iter(results),
+            (request, Vec::new(), None, None, String::new()),
+        ))
+    }
+
     /// Executes the chat workflow until the task is complete.
-    async fn chat_workflow(
-        &self,
-        request: Context,
-    ) -> ResultStream<ChatResponse, Error> {
+    async fn chat_workflow(&self, request: Context) -> ResultStream<ChatResponse, Error> {
         let that = self.clone();
 
         let stream = futures::stream::unfold(
             (Some(request), Vec::new(), None, None, String::new()),
-            move |(maybe_request, mut tool_call_parts, mut some_tool_call, mut some_tool_result, mut assistant_message_content)| {
+            move |(
+                maybe_request,
+                mut tool_call_parts,
+                mut some_tool_call,
+                mut some_tool_result,
+                mut assistant_message_content,
+            )| {
                 let that = that.clone();
                 async move {
                     let mut request = maybe_request?;
                     let mut results = vec![];
 
-                    let mut response = that.provider.chat(request.clone()).await.unwrap();
-                    while let Some(chunk) = response.next().await {
-                        let message = chunk.unwrap();
+                    match that.provider.chat(request.clone()).await {
+                        Ok(mut response) => {
+                            while let Some(chunk) = response.next().await {
+                                let message = match chunk {
+                                    Ok(msg) => msg,
+                                    Err(err) => {
+                                        results.push(Err(err.into()));
+                                        return Self::return_statement(results, None);
+                                    }
+                                };
 
-                        if let Some(ref content) = message.content {
-                            if !content.is_empty() {
-                                assistant_message_content.push_str(content.as_str());
-                                results.push(Ok(ChatResponse::Text(content.as_str().to_string())));
-                            }
-                        }
-                        if !message.tool_call.is_empty() {
-                            if let Some(ToolCall::Part(tool_part)) = message.tool_call.first() {
-                                // Send tool call detection on first part
-                                if tool_call_parts.is_empty() {
-                                    if let Some(tool_name) = &tool_part.name {
-                                        results.push(Ok(ChatResponse::ToolCallDetected(tool_name.clone())));
+                                if let Some(ref content) = message.content {
+                                    if !content.is_empty() {
+                                        assistant_message_content.push_str(content.as_str());
+                                        results.push(Ok(ChatResponse::Text(
+                                            content.as_str().to_string(),
+                                        )));
                                     }
                                 }
-                                // Add to parts and send the part itself
-                                tool_call_parts.push(tool_part.clone());
-                                results.push(Ok(ChatResponse::ToolCallArgPart(
-                                    tool_part.arguments_part.clone(),
-                                )));
+                                if !message.tool_call.is_empty() {
+                                    if let Some(ToolCall::Part(tool_part)) =
+                                        message.tool_call.first()
+                                    {
+                                        // Send tool call detection on first part
+                                        if tool_call_parts.is_empty() {
+                                            if let Some(tool_name) = &tool_part.name {
+                                                results.push(Ok(ChatResponse::ToolCallDetected(
+                                                    tool_name.clone(),
+                                                )));
+                                            }
+                                        }
+                                        // Add to parts and send the part itself
+                                        tool_call_parts.push(tool_part.clone());
+                                        results.push(Ok(ChatResponse::ToolCallArgPart(
+                                            tool_part.arguments_part.clone(),
+                                        )));
+                                    }
+                                }
+
+                                if let Some(FinishReason::ToolCalls) = message.finish_reason {
+                                    // TODO: drop clone from here.
+                                    match ToolCallFull::try_from_parts(&tool_call_parts) {
+                                        Ok(tool_call) => {
+                                            some_tool_call = Some(tool_call.clone());
+
+                                            results.push(Ok(ChatResponse::ToolCallStart(
+                                                tool_call.clone(),
+                                            )));
+
+                                            let tool_result = that.tool.call(tool_call).await;
+
+                                            some_tool_result = Some(tool_result.clone());
+
+                                            // send the tool use end message.
+                                            results
+                                                .push(Ok(ChatResponse::ToolCallEnd(tool_result)));
+                                        }
+                                        Err(e) => {
+                                            results.push(Err(e.into()));
+                                            return Self::return_statement(results, None);
+                                        }
+                                    }
+                                }
                             }
+
+                            request = request.add_message(ContextMessage::assistant(
+                                assistant_message_content.clone(),
+                                some_tool_call,
+                            ));
+
+                            results.push(Ok(ChatResponse::ModifyContext(request.clone())));
+
+                            if let Some(tool_result) = some_tool_result {
+                                request =
+                                    request.add_message(ContextMessage::ToolMessage(tool_result));
+                                results.push(Ok(ChatResponse::ModifyContext(request.clone())));
+                            } else {
+                                return Self::return_statement(results, None);
+                            }
+
+                            Self::return_statement(results, Some(request))
                         }
-
-                        if let Some(FinishReason::ToolCalls) = message.finish_reason {
-                            // TODO: drop clone from here.
-                            let tool_call = ToolCallFull::try_from_parts(&tool_call_parts).unwrap();
-                            some_tool_call = Some(tool_call.clone());
-
-                            results.push(Ok(ChatResponse::ToolCallStart(tool_call.clone())));
-
-                            let tool_result = that.tool.call(tool_call).await;
-
-                            some_tool_result = Some(tool_result.clone());
-
-                            // send the tool use end message.
-                            results.push(Ok(ChatResponse::ToolCallEnd(tool_result)));
+                        Err(err) => {
+                            results.push(Err(err.into()));
+                            Self::return_statement(results, None)
                         }
                     }
-
-                    request = request.add_message(ContextMessage::assistant(
-                        assistant_message_content.clone(),
-                        some_tool_call.clone(),
-                    ));
-
-                    results.push(Ok(ChatResponse::ModifyContext(request.clone())));
-
-                    if let Some(tool_result) = some_tool_result.clone() {
-                        request = request.add_message(ContextMessage::ToolMessage(tool_result));
-                        results.push(Ok(ChatResponse::ModifyContext(request.clone())));
-                    } else {
-                        return Some((futures::stream::iter(results), (None, Vec::new(), None, None, String::new())));
-                    }
-
-                    Some((futures::stream::iter(results), (Some(request), Vec::new(), None, None, String::new())))
                 }
             },
         )
-            .flatten()
-            .chain(futures::stream::once(async { Ok(ChatResponse::Complete) }));
+        .flatten()
+        .chain(futures::stream::once(async { Ok(ChatResponse::Complete) }));
 
         Ok(Box::pin(stream))
     }
