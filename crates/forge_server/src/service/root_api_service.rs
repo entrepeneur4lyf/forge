@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use forge_domain::{Context, Environment, Model, ResultStream, ToolDefinition, ToolService};
+use forge_domain::{
+    Config, Context, Environment, Model, ResultStream, ToolDefinition, ToolService,
+};
 use forge_provider::ProviderService;
 
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
 use super::{
-    ChatRequest, ChatResponse, Conversation, ConversationId, ConversationService, File, Service,
-    UIService,
+    ChatRequest, ChatResponse, ConfigService, Conversation, ConversationId, ConversationService,
+    File, Service, UIService,
 };
 use crate::{Error, Result};
 
@@ -20,6 +22,8 @@ pub trait RootAPIService: Send + Sync {
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
+    async fn get_config(&self) -> Result<Config>;
+    async fn set_config(&self, request: Config) -> Result<Config>;
 }
 
 impl Service {
@@ -35,6 +39,7 @@ struct Live {
     completions: Arc<dyn CompletionService>,
     ui_service: Arc<dyn UIService>,
     storage: Arc<dyn ConversationService>,
+    config_storage: Arc<dyn ConfigService>,
 }
 
 impl Live {
@@ -42,31 +47,36 @@ impl Live {
         let cwd: String = env.cwd.clone();
         let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
         let tool = Arc::new(forge_tool::Service::tool_service());
+        let file_read = Arc::new(Service::file_read_service());
 
         let system_prompt = Arc::new(Service::system_prompt(
             env.clone(),
             tool.clone(),
             provider.clone(),
         ));
-        let file_read = Arc::new(Service::file_read_service());
-        let user_prompt = Arc::new(Service::user_prompt_service(file_read));
+        let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
 
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
-        let chat_service = Arc::new(Service::chat_service(
+        let neo_chat_service = Arc::new(Service::chat_service(
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),
             user_prompt,
         ));
-
-        let chat_service = Arc::new(Service::ui_service(storage.clone(), chat_service));
-
         let completions = Arc::new(Service::completion_service(cwd.clone()));
 
-        let storage =
-            Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
+        let title_service = Arc::new(Service::title_service(provider.clone()));
+
+        let chat_service = Arc::new(Service::ui_service(
+            storage.clone(),
+            neo_chat_service,
+            title_service,
+        ));
+        let config_storage = Arc::new(
+            Service::config_service(&cwd).expect("Failed to create config storage service"),
+        );
 
         Self {
             provider,
@@ -74,6 +84,7 @@ impl Live {
             completions,
             ui_service: chat_service,
             storage,
+            config_storage,
         }
     }
 }
@@ -115,5 +126,13 @@ impl RootAPIService for Live {
             .await?
             .context
             .into())
+    }
+
+    async fn get_config(&self) -> Result<Config> {
+        Ok(self.config_storage.get().await?)
+    }
+
+    async fn set_config(&self, request: Config) -> Result<Config> {
+        self.config_storage.set(request).await
     }
 }
