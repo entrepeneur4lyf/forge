@@ -315,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_description() {
-        assert!(Shell::default().description().len() > 100)
+        assert!(Shell::new(".").description().len() > 100)
     }
 
     #[tokio::test]
