@@ -960,6 +960,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "shlex",
  "streaming-iterator",
  "tempfile",
  "tokio",

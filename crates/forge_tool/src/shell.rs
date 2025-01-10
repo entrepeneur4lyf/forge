@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_domain::{Description, ToolCallService};
+use forge_domain::{Cwd, Description, ToolCallService};
 use forge_tool_macros::Description;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -29,10 +29,11 @@ pub struct ShellOutput {
 #[derive(Description)]
 pub struct Shell {
     blacklist: HashSet<String>,
+    cwd: Cwd,
 }
 
-impl Default for Shell {
-    fn default() -> Self {
+impl Shell {
+    pub fn new(cwd: impl Into<Cwd>) -> Self {
         let mut blacklist = HashSet::new();
         // File System Destruction Commands
         blacklist.insert("rm".to_string());
@@ -65,13 +66,52 @@ impl Default for Shell {
         blacklist.insert("reboot".to_string());
         blacklist.insert("init".to_string());
 
-        Shell { blacklist }
+        Shell { blacklist, cwd: cwd.into() }
     }
 }
 
 impl Shell {
-    fn validate_command(&self, command: &str) -> Result<(), String> {
-        let base_command = command
+    fn is_path(arg: &str) -> bool {
+        arg.starts_with('/')
+            || arg.starts_with("./")
+            || arg.starts_with("../")
+            || PathBuf::from(arg).exists()
+    }
+
+    fn extract_paths(command: &str) -> Vec<PathBuf> {
+        let args = shlex::split(command).unwrap_or_default();
+
+        args.into_iter()
+            .filter(|v| Self::is_path(v))
+            .map(PathBuf::from)
+            .collect()
+    }
+
+    fn validate_command(&self, shell_input: &ShellInput) -> Result<(), String> {
+        let cwd = PathBuf::from(self.cwd.as_str()).canonicalize();
+        let cwd = cwd.map_err(|e| format!("Unable to validate path: {}", e))?;
+
+        let commands = Self::extract_paths(&shell_input.command);
+        let commands = commands
+            .into_iter()
+            .map(|v| {
+                std::fs::canonicalize(v).map_err(|e| format!("Unable to validate path: {}", e))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        if commands.into_iter().any(|v| !v.starts_with(&cwd)) {
+            return Err(
+                "Command is not allowed to access files outside of the current working directory"
+                    .to_string(),
+            );
+        }
+
+        if shell_input.command.is_empty() {
+            return Err("Empty command".to_string());
+        }
+
+        let base_command = shell_input
+            .command
             .split_whitespace()
             .next()
             .ok_or_else(|| "Empty command".to_string())?;
@@ -112,7 +152,7 @@ impl ToolCallService for Shell {
     type Output = ShellOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        self.validate_command(&input.command)?;
+        self.validate_command(&input)?;
         self.execute_command(&input.command, input.cwd).await
     }
 }
@@ -127,7 +167,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let result = shell
             .call(ShellInput {
                 command: "echo 'Hello, World!'".to_string(),
@@ -143,7 +183,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
@@ -176,7 +216,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let result = shell
             .call(ShellInput {
                 command: "nonexistentcommand".to_string(),
@@ -191,7 +231,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_blacklisted_command() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let result = shell
             .call(ShellInput {
                 command: "rm -rf /".to_string(),
@@ -205,7 +245,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_command() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let result = shell
             .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
             .await;
@@ -216,7 +256,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_pwd() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let current_dir = fs::canonicalize(env::current_dir().unwrap()).unwrap();
         let result = shell
             .call(ShellInput {
@@ -242,7 +282,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_multiple_commands() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let result = shell
             .call(ShellInput {
                 command: "echo 'first' && echo 'second'".to_string(),
@@ -259,7 +299,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_environment_variables() {
-        let shell = Shell::default();
+        let shell = Shell::new(".");
         let result = shell
             .call(ShellInput {
                 command: "echo $PATH".to_string(),
@@ -276,5 +316,18 @@ mod tests {
     #[test]
     fn test_description() {
         assert!(Shell::description().len() > 100)
+    }
+
+    #[tokio::test]
+    async fn test_access_too_non_project_files() {
+        let shell = Shell::new(".");
+        let result = shell
+            .call(ShellInput {
+                command: "cat /etc/passwd".to_string(),
+                cwd: env::current_dir().unwrap(),
+            })
+            .await;
+
+        assert!(result.is_err());
     }
 }

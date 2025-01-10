@@ -80,7 +80,7 @@ mod tests {
     fn test_env() -> Environment {
         Environment {
             os: "linux".to_string(),
-            cwd: "/home/user/project".to_string(),
+            cwd: "/home/user/project".into(),
             shell: "/bin/bash".to_string(),
             home: Some("/home/user".to_string()),
             files: vec!["file1.txt".to_string(), "file2.txt".to_string()],
@@ -93,7 +93,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_supported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::tool_service());
+        let tools = Arc::new(forge_tool::Service::tool_service(env.cwd.to_string()));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
         );
@@ -107,7 +107,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_unsupported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::tool_service());
+        let tools = Arc::new(forge_tool::Service::tool_service(env.cwd.to_string()));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
         );

@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use forge_domain::Cwd;
 use forge_walker::Walker;
 use serde::Serialize;
 
@@ -18,11 +19,11 @@ pub trait CompletionService: Send + Sync {
 }
 
 struct Live {
-    path: String,
+    path: Cwd,
 }
 
 impl Live {
-    pub fn new(path: impl Into<String>) -> Self {
+    pub fn new(path: impl Into<Cwd>) -> Self {
         Self { path: path.into() }
     }
 }
@@ -30,7 +31,7 @@ impl Live {
 #[async_trait::async_trait]
 impl CompletionService for Live {
     async fn list(&self) -> Result<Vec<File>> {
-        let cwd = PathBuf::from(self.path.clone()); // Use the current working directory
+        let cwd = PathBuf::from(self.path.as_str()); // Use the current working directory
         let walker = Walker::new(cwd);
 
         let files = walker.get().await?;
@@ -42,7 +43,7 @@ impl CompletionService for Live {
 }
 
 impl Service {
-    pub fn completion_service(path: impl Into<String>) -> impl CompletionService {
+    pub fn completion_service(path: impl Into<Cwd>) -> impl CompletionService {
         Live::new(path)
     }
 }
