@@ -20,8 +20,7 @@ impl Serialize for ToolResult {
     where
         S: Serializer,
     {
-        let xml_string = quick_xml::se::to_string(self).map_err(serde::ser::Error::custom)?;
-        serializer.serialize_str(&xml_string)
+        serializer.serialize_str(&self.to_string())
     }
 }
 
