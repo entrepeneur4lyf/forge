@@ -1,10 +1,9 @@
 use std::sync::Arc;
 use std::vec::IntoIter;
 
-use derive_setters::Setters;
 use forge_domain::{
-    Context, ContextMessage, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull,
-    ToolName, ToolResult, ToolService,
+    ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ResultStream, Role, ToolCall,
+    ToolCallFull, ToolService,
 };
 use forge_provider::ProviderService;
 use futures::StreamExt;
@@ -12,8 +11,8 @@ use serde::Serialize;
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
-use super::{ConversationId, Service};
-use crate::{Errata, Error};
+use super::Service;
+use crate::{Error};
 
 type ReturnTy = Option<(
     futures::stream::Iter<IntoIter<Result<ChatResponse, Error>>>,
@@ -176,7 +175,11 @@ impl Live {
 
 #[async_trait::async_trait]
 impl ChatService for Live {
-    async fn chat(&self, chat: ChatRequest, request: Context) -> ResultStream<ChatResponse, Error> {
+    async fn chat(
+        &self,
+        chat: forge_domain::ChatRequest,
+        request: Context,
+    ) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
 
@@ -190,35 +193,6 @@ impl ChatService for Live {
 
         that.chat_workflow(request).await
     }
-}
-
-#[derive(Debug, serde::Deserialize, Clone, Setters)]
-#[setters(into)]
-pub struct ChatRequest {
-    pub content: String,
-    pub model: ModelId,
-    pub conversation_id: Option<ConversationId>,
-}
-
-/// Events that are emitted by the agent for external consumption. This includes
-/// events for all internal state changes.
-#[derive(Debug, Clone, Serialize, PartialEq, derive_more::From)]
-#[serde(rename_all = "camelCase")]
-pub enum ChatResponse {
-    #[from(ignore)]
-    Text(String),
-    ToolCallDetected(ToolName),
-    ToolCallArgPart(String),
-    ToolCallStart(ToolCallFull),
-    ToolCallEnd(ToolResult),
-    ConversationStarted(ConversationId),
-    ModifyContext(Context),
-    Complete,
-    #[from(ignore)]
-    PartialTitle(String),
-    #[from(ignore)]
-    CompleteTitle(String),
-    Error(Errata),
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
@@ -259,8 +233,9 @@ mod tests {
 
     use derive_setters::Setters;
     use forge_domain::{
-        ChatCompletionMessage, Content, Context, ContextMessage, FinishReason, ModelId,
-        ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName, ToolResult, ToolService,
+        ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
+        FinishReason, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName, ToolResult,
+        ToolService,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
@@ -270,17 +245,6 @@ mod tests {
     use crate::service::chat_service::ChatService;
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
-    use crate::service::{ChatResponse, ConversationId};
-
-    impl ChatRequest {
-        pub fn new(content: impl ToString) -> ChatRequest {
-            ChatRequest {
-                content: content.to_string(),
-                model: ModelId::default(),
-                conversation_id: None,
-            }
-        }
-    }
 
     struct TestToolService {
         result: Mutex<Vec<Value>>,
@@ -376,10 +340,9 @@ mod tests {
             .assistant_responses(vec![vec![ChatCompletionMessage::assistant(Content::full(
                 "Yes sure, tell me what you need.",
             ))]])
-            .run(
-                ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
-            )
+            .run(ChatRequest::new("Hello can you help me?").conversation_id(
+                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+            ))
             .await
             .messages
             .into_iter()
@@ -439,10 +402,9 @@ mod tests {
                 json!({"result": "foo tool called"}),
                 json!({"result": "bar tool called"}),
             ])
-            .run(
-                ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
-            )
+            .run(ChatRequest::new("Hello can you help me?").conversation_id(
+                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+            ))
             .await
             .messages
             .into_iter()
@@ -462,10 +424,9 @@ mod tests {
     async fn test_llm_calls_with_system_prompt() {
         let actual = Fixture::default()
             .system_prompt("Do everything that the user says")
-            .run(
-                ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
-            )
+            .run(ChatRequest::new("Hello can you help me?").conversation_id(
+                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+            ))
             .await
             .llm_calls;
 
@@ -504,10 +465,9 @@ mod tests {
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
-            .run(
-                ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
-            )
+            .run(ChatRequest::new("Hello can you help me?").conversation_id(
+                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+            ))
             .await
             .messages
             .into_iter()
@@ -562,10 +522,9 @@ mod tests {
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
-            .run(
-                ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
-            )
+            .run(ChatRequest::new("Hello can you help me?").conversation_id(
+                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+            ))
             .await
             .messages
             .into_iter()
@@ -603,8 +562,9 @@ mod tests {
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
-                ChatRequest::new("Hello can you use foo tool?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+                ChatRequest::new("Hello can you use foo tool?").conversation_id(
+                    ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                ),
             )
             .await
             .llm_calls;
