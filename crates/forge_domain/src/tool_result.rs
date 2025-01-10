@@ -1,18 +1,25 @@
 use std::fmt::Display;
 
 use derive_setters::Setters;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
 
 use crate::{ToolCallFull, ToolCallId, ToolName};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Setters)]
 #[setters(strip_option)]
 pub struct ToolResult {
     pub name: ToolName,
     pub call_id: Option<ToolCallId>,
     pub content: Value,
     pub is_error: bool,
+}
+
+impl Serialize for ToolResult {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        let xml_string = quick_xml::se::to_string(self).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_str(&xml_string)
+    }
 }
 
 #[derive(Default, Serialize, Setters)]
