@@ -16,7 +16,10 @@ pub struct ToolResult {
 }
 
 impl Serialize for ToolResult {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
         let xml_string = quick_xml::se::to_string(self).map_err(serde::ser::Error::custom)?;
         serializer.serialize_str(&xml_string)
     }
