@@ -1,10 +1,7 @@
 use std::sync::Arc;
 use std::vec::IntoIter;
 
-use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ResultStream, Role, ToolCall,
-    ToolCallFull, ToolService,
-};
+use forge_domain::{BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, ConversationId, Errata, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull, ToolName, ToolResult, ToolService};
 use forge_provider::ProviderService;
 use futures::StreamExt;
 use serde::Serialize;
@@ -72,10 +69,7 @@ impl Live {
         let that = self.clone();
 
         let stream = futures::stream::unfold(Some(request), move |maybe_request| {
-            let mut tool_call_parts = vec![];
-            let mut some_tool_call = None;
             let mut some_tool_result = None;
-            let mut assistant_message_content = String::new();
 
             let that = that.clone();
             async move {
@@ -83,70 +77,25 @@ impl Live {
                 let mut results = vec![];
 
                 match that.provider.chat(request.clone()).await {
-                    Ok(mut response) => {
-                        while let Some(chunk) = response.next().await {
-                            let message = match chunk {
+                    Ok(response) => {
+                        let mut response_stream = forge_domain::convert_boxstream_to_impl_stream(Box::pin(response.map(|v|v.map_err(|_| forge_domain::Error::ToolCallMissingName))))
+                            .collect_tool_call_parts()
+                            .collect_tool_call_xml_content();
+
+                        while let Some(message) = response_stream.next().await {
+                            let message = match message {
                                 Ok(msg) => msg,
                                 Err(err) => {
                                     results.push(Err(err.into()));
                                     return Self::return_statement(results, None);
                                 }
                             };
-
-                            if let Some(ref content) = message.content {
-                                if !content.is_empty() {
-                                    assistant_message_content.push_str(content.as_str());
-                                    results
-                                        .push(Ok(ChatResponse::Text(content.as_str().to_string())));
-                                }
-                            }
-                            if !message.tool_call.is_empty() {
-                                if let Some(ToolCall::Part(tool_part)) = message.tool_call.first() {
-                                    // Send tool call detection on first part
-                                    if tool_call_parts.is_empty() {
-                                        if let Some(tool_name) = &tool_part.name {
-                                            results.push(Ok(ChatResponse::ToolCallDetected(
-                                                tool_name.clone(),
-                                            )));
-                                        }
-                                    }
-                                    // Add to parts and send the part itself
-                                    tool_call_parts.push(tool_part.clone());
-                                    results.push(Ok(ChatResponse::ToolCallArgPart(
-                                        tool_part.arguments_part.clone(),
-                                    )));
-                                }
-                            }
-
-                            if let Some(FinishReason::ToolCalls) = message.finish_reason {
-                                // TODO: drop clone from here.
-                                match ToolCallFull::try_from_parts(&tool_call_parts) {
-                                    Ok(tool_call) => {
-                                        some_tool_call = Some(tool_call.clone());
-
-                                        results.push(Ok(ChatResponse::ToolCallStart(
-                                            tool_call.clone(),
-                                        )));
-
-                                        let tool_result = that.tool.call(tool_call).await;
-
-                                        some_tool_result = Some(tool_result.clone());
-
-                                        // send the tool use end message.
-                                        results.push(Ok(ChatResponse::ToolCallEnd(tool_result)));
-                                    }
-                                    Err(e) => {
-                                        results.push(Err(e.into()));
-                                        return Self::return_statement(results, None);
-                                    }
-                                }
-                            }
                         }
 
-                        request = request.add_message(ContextMessage::assistant(
-                            assistant_message_content.clone(),
-                            some_tool_call,
-                        ));
+                        // request = request.add_message(ContextMessage::assistant(
+                        //     assistant_message_content.clone(),
+                        //     some_tool_call,
+                        // ));
 
                         results.push(Ok(ChatResponse::ModifyContext(request.clone())));
 
@@ -232,16 +181,12 @@ mod tests {
     use std::vec;
 
     use derive_setters::Setters;
-    use forge_domain::{
-        ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
-        FinishReason, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName, ToolResult,
-        ToolService,
-    };
+    use forge_domain::{ChatCompletionMessage, ChatRequest, ChatResponse, Content, Context, ContextMessage, ConversationId, FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName, ToolResult, ToolService};
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
 
-    use super::{ChatRequest, Live};
+    use super::Live;
     use crate::service::chat_service::ChatService;
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
