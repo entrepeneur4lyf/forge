@@ -1,7 +1,10 @@
 use std::sync::Arc;
 use std::vec::IntoIter;
 
-use forge_domain::{BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, ConversationId, Errata, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull, ToolName, ToolResult, ToolService};
+use forge_domain::{
+    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, ResultStream, Role,
+    ToolService,
+};
 use forge_provider::ProviderService;
 use futures::StreamExt;
 use serde::Serialize;
@@ -69,7 +72,7 @@ impl Live {
         let that = self.clone();
 
         let stream = futures::stream::unfold(Some(request), move |maybe_request| {
-            let mut some_tool_result = None;
+            let some_tool_result = None;
 
             let that = that.clone();
             async move {
@@ -78,7 +81,12 @@ impl Live {
 
                 match that.provider.chat(request.clone()).await {
                     Ok(response) => {
-                        let mut response_stream = forge_domain::convert_boxstream_to_impl_stream(Box::pin(response.map(|v|v.map_err(|_| forge_domain::Error::ToolCallMissingName))))
+                        let mut response_stream =
+                            forge_domain::convert_boxstream_to_impl_stream(Box::pin(
+                                response.map(|v| {
+                                    v.map_err(|_| forge_domain::Error::ToolCallMissingName)
+                                }),
+                            ))
                             .collect_tool_call_parts()
                             .collect_tool_call_xml_content();
 
@@ -181,7 +189,11 @@ mod tests {
     use std::vec;
 
     use derive_setters::Setters;
-    use forge_domain::{ChatCompletionMessage, ChatRequest, ChatResponse, Content, Context, ContextMessage, ConversationId, FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName, ToolResult, ToolService};
+    use forge_domain::{
+        ChatCompletionMessage, ChatRequest, ChatResponse, Content, Context, ContextMessage,
+        ConversationId, FinishReason, ToolCallFull, ToolCallId, ToolCallPart,
+        ToolDefinition, ToolName, ToolResult, ToolService,
+    };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
