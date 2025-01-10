@@ -191,8 +191,8 @@ mod tests {
     use derive_setters::Setters;
     use forge_domain::{
         ChatCompletionMessage, ChatRequest, ChatResponse, Content, Context, ContextMessage,
-        ConversationId, FinishReason, ToolCallFull, ToolCallId, ToolCallPart,
-        ToolDefinition, ToolName, ToolResult, ToolService,
+        ConversationId, FinishReason, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition,
+        ToolName, ToolResult, ToolService,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
