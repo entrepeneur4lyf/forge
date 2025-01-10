@@ -12,7 +12,7 @@ use serde::Serialize;
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
 use super::Service;
-use crate::{Error};
+use crate::Error;
 
 type ReturnTy = Option<(
     futures::stream::Iter<IntoIter<Result<ChatResponse, Error>>>,
