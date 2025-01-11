@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+
 use anyhow::Result;
 use forge_domain::{Cwd, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
+use forge_walker::Walker;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use forge_walker::Walker;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -78,8 +79,8 @@ impl Shell {
 
     async fn is_allowed_path(&self, path: &Path, base_path: &Path) -> Result<bool, String> {
         // Ensure path is within working directory
-        let canonical_path = std::fs::canonicalize(path)
-            .map_err(|e| format!("Unable to validate path: {}", e))?;
+        let canonical_path =
+            std::fs::canonicalize(path).map_err(|e| format!("Unable to validate path: {}", e))?;
         let canonical_base = std::fs::canonicalize(base_path)
             .map_err(|e| format!("Unable to validate base path: {}", e))?;
 
@@ -87,16 +88,20 @@ impl Shell {
             return Ok(false);
         }
 
-        // Get the list of allowed files from forge_walker (automatically handles hidden and gitignored files)
+        // Get the list of allowed files from forge_walker (automatically handles hidden
+        // and gitignored files)
         let walker = Walker::new(base_path.to_path_buf());
-        let allowed_files = walker.get().await.map_err(|e| format!("Failed to walk directory: {}", e))?;
+        let allowed_files = walker
+            .get()
+            .await
+            .map_err(|e| format!("Failed to walk directory: {}", e))?;
 
         // Convert the input path to be relative to base_path
-        let relative_path = canonical_path.strip_prefix(&canonical_base)
-            .map_err(|_| format!("Failed to get relative path"))?
+        let relative_path = canonical_path
+            .strip_prefix(&canonical_base)
+            .map_err(|_| "Failed to get relative path".to_string())?
             .to_string_lossy()
             .to_string();
-
 
         // If the file is in the allowed files list, it's not hidden or gitignored
         let is_allowed = allowed_files.iter().any(|f| f.path == relative_path);
@@ -104,7 +109,8 @@ impl Shell {
     }
 
     fn extract_paths(command: &str) -> Vec<PathBuf> {
-        shlex::split(command).unwrap_or_default()
+        shlex::split(command)
+            .unwrap_or_default()
             .into_iter()
             .filter(|v| Self::is_path(v))
             .map(PathBuf::from)
@@ -112,7 +118,8 @@ impl Shell {
     }
 
     async fn validate_command(&self, shell_input: &ShellInput) -> Result<(), String> {
-        let cwd = PathBuf::from(self.cwd.as_str()).canonicalize()
+        let cwd = PathBuf::from(self.cwd.as_str())
+            .canonicalize()
             .map_err(|e| format!("Unable to validate path: {}", e))?;
 
         let paths = Self::extract_paths(&shell_input.command);
@@ -176,28 +183,30 @@ impl ToolCallService for Shell {
 #[cfg(test)]
 mod tests {
     use std::{env, fs};
-    use tempfile::TempDir;
+
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
+
     use super::*;
 
     fn create_test_files(dir: &TempDir) -> PathBuf {
         let base = dir.path();
-        
+
         // Initialize git repo
         std::process::Command::new("git")
             .args(["init"])
             .current_dir(base)
             .output()
             .unwrap();
-        
+
         // Create test files
         fs::write(base.join("normal.txt"), "test").unwrap();
         fs::write(base.join(".hidden.txt"), "hidden").unwrap();
-        
+
         // Create .gitignore
         fs::write(base.join(".gitignore"), "ignored.txt\n").unwrap();
         fs::write(base.join("ignored.txt"), "ignored").unwrap();
-        
+
         base.to_path_buf()
     }
 
