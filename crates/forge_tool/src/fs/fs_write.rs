@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use forge_domain::{Environment, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
@@ -33,7 +33,7 @@ impl FSWrite {
     }
 
     /// Check if a path is allowed based on its name (without existence check)
-    async fn is_path_allowed(&self, path: &PathBuf) -> bool {
+    async fn is_path_allowed(&self, path: &Path) -> bool {
         let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         // Don't allow hidden files
