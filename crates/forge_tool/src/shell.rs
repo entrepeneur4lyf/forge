@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use forge_domain::{Cwd, ToolCallService, ToolDescription};
+use forge_domain::{ ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;
@@ -30,11 +30,11 @@ pub struct ShellOutput {
 #[derive(ToolDescription)]
 pub struct Shell {
     blacklist: HashSet<String>,
-    cwd: Cwd,
+    cwd: PathBuf,
 }
 
 impl Shell {
-    pub fn new(cwd: impl Into<Cwd>) -> Self {
+    pub fn new(cwd: PathBuf) -> Self {
         let mut blacklist = HashSet::new();
         // File System Destruction Commands
         blacklist.insert("rm".to_string());
@@ -67,7 +67,7 @@ impl Shell {
         blacklist.insert("reboot".to_string());
         blacklist.insert("init".to_string());
 
-        Shell { blacklist, cwd: cwd.into() }
+        Shell { blacklist, cwd }
     }
 
     fn is_path(arg: &str) -> bool {
@@ -118,7 +118,7 @@ impl Shell {
     }
 
     async fn validate_command(&self, shell_input: &ShellInput) -> Result<(), String> {
-        let cwd = PathBuf::from(self.cwd.as_str())
+        let cwd = self.cwd
             .canonicalize()
             .map_err(|e| format!("Unable to validate path: {}", e))?;
 
@@ -212,7 +212,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let shell = Shell::new(".");
+        let shell = Shell::new(".".into());
         let result = shell
             .call(ShellInput {
                 command: "echo 'Hello, World!'".to_string(),
@@ -228,7 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let shell = Shell::new(".");
+        let shell = Shell::new(".".into());
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
@@ -263,7 +263,7 @@ mod tests {
     async fn test_access_hidden_file() {
         let temp = TempDir::new().unwrap();
         let base_path = create_test_files(&temp);
-        let shell = Shell::new(base_path.to_str().unwrap());
+        let shell = Shell::new(base_path.clone());
 
         let result = shell
             .call(ShellInput {
@@ -280,7 +280,7 @@ mod tests {
     async fn test_access_gitignored_file() {
         let temp = TempDir::new().unwrap();
         let base_path = create_test_files(&temp);
-        let shell = Shell::new(base_path.to_str().unwrap());
+        let shell = Shell::new(base_path.clone());
 
         let result = shell
             .call(ShellInput {
@@ -297,7 +297,7 @@ mod tests {
     async fn test_access_normal_file() {
         let temp = TempDir::new().unwrap();
         let base_path = create_test_files(&temp);
-        let shell = Shell::new(base_path.to_str().unwrap());
+        let shell = Shell::new(base_path.clone());
 
         let result = shell
             .call(ShellInput {
@@ -312,7 +312,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::new(".");
+        let shell = Shell::new(".".into());
         let result = shell
             .call(ShellInput {
                 command: "nonexistentcommand".to_string(),
@@ -327,7 +327,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_blacklisted_command() {
-        let shell = Shell::new(".");
+        let shell = Shell::new(".".into());
         let result = shell
             .call(ShellInput {
                 command: "rm -rf /".to_string(),
@@ -341,7 +341,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_command() {
-        let shell = Shell::new(".");
+        let shell = Shell::new(".".into());
         let result = shell
             .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
             .await;
@@ -352,7 +352,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_access_outside_working_directory() {
-        let shell = Shell::new(".");
+        let shell = Shell::new(".".into());
         let result = shell
             .call(ShellInput {
                 command: "cat /etc/passwd".to_string(),

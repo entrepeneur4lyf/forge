@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use forge_domain::{Cwd, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{Environment, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
 use serde_json::Value;
 use tracing::info;
 
@@ -85,7 +85,7 @@ impl ToolService for Live {
 }
 
 impl Service {
-    pub fn tool_service(cwd: impl Into<Cwd>) -> impl ToolService {
+    pub fn tool_service(env: Environment) -> impl ToolService {
         Live::from_iter([
             Tool::new(FSRead),
             Tool::new(FSWrite),
@@ -94,7 +94,7 @@ impl Service {
             Tool::new(FSFileInfo),
             Tool::new(FSReplace),
             Tool::new(Outline),
-            Tool::new(Shell::new(cwd)),
+            Tool::new(Shell::new(env.cwd)),
             Tool::new(Think::default()),
         ])
     }
@@ -133,15 +133,16 @@ mod test {
 
     #[test]
     fn test_usage_prompt() {
-        let docs = Service::tool_service(".").usage_prompt();
+        let env = Environment{cwd: ".".into(), ..Environment::default()};
+        let docs = Service::tool_service(env).usage_prompt();
 
         assert_snapshot!(docs);
     }
 
     #[test]
     fn test_tool_definition() {
-        let tools = Service::tool_service(".").list();
-
+        let env = Environment{cwd: ".".into(), ..Environment::default()};
+        let tools = Service::tool_service(env).list();
         assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }
 }
