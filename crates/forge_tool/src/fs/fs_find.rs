@@ -1,7 +1,7 @@
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use forge_domain::{ToolCallService, ToolDescription};
+use forge_domain::{Environment, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use regex::Regex;
@@ -25,7 +25,15 @@ pub struct FSSearchInput {
 /// content across multiple files, displaying each match with encapsulating
 /// context.
 #[derive(ToolDescription)]
-pub struct FSSearch;
+pub struct FSSearch {
+    environment: Environment,
+}
+
+impl FSSearch {
+    pub fn new(environment: Environment) -> Self {
+        Self { environment }
+    }
+}
 
 #[async_trait::async_trait]
 impl ToolCallService for FSSearch {
@@ -33,8 +41,14 @@ impl ToolCallService for FSSearch {
     type Output = Vec<String>;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        let dir = Path::new(&input.path);
-        if !dir.exists() {
+        let path = PathBuf::from(&input.path);
+        
+        // Validate the path before proceeding
+        if !self.validate_path(&path, &self.environment).await? {
+            return Err("Access to this path is not allowed".to_string());
+        }
+
+        if !path.exists() {
             return Err(format!("Directory '{}' does not exist", input.path));
         }
 
@@ -42,7 +56,7 @@ impl ToolCallService for FSSearch {
         let pattern = format!("(?i){}", input.regex);
         let regex = Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
 
-        let walker = Walker::new(dir.to_path_buf());
+        let walker = Walker::new(path.clone());
         let files = walker
             .get()
             .await
@@ -56,14 +70,14 @@ impl ToolCallService for FSSearch {
                 continue;
             }
 
-            let path = Path::new(&file.path);
-            let full_path = dir.join(path);
+            let file_path = Path::new(&file.path);
+            let full_path = path.join(file_path);
 
             // Apply file pattern filter if provided
             if let Some(ref pattern) = input.file_pattern {
                 let glob = glob::Pattern::new(pattern)
                     .map_err(|e| format!("Invalid glob pattern: {}", e))?;
-                if let Some(filename) = path.file_name().unwrap_or(path.as_os_str()).to_str() {
+                if let Some(filename) = file_path.file_name().unwrap_or(file_path.as_os_str()).to_str() {
                     if !glob.matches(filename) {
                         continue;
                     }
@@ -112,12 +126,13 @@ mod test {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
-
+    use crate::test_utils::setup_test_env;
     use super::*;
 
     #[tokio::test]
     async fn test_fs_search_content() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
             .await
@@ -129,7 +144,7 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let fs_search = FSSearch::new(environment);
         let result = fs_search
             .call(FSSearchInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -147,6 +162,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_with_pattern() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
             .await
@@ -155,7 +171,7 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let fs_search = FSSearch::new(environment);
         let result = fs_search
             .call(FSSearchInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -172,13 +188,14 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_with_context() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let content = "line 1\nline 2\ntest line\nline 4\nline 5";
 
         fs::write(temp_dir.path().join("test.txt"), content)
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let fs_search = FSSearch::new(environment);
         let result = fs_search
             .call(FSSearchInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -195,6 +212,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_recursive() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         let sub_dir = temp_dir.path().join("subdir");
         fs::create_dir(&sub_dir).await.unwrap();
@@ -209,7 +227,7 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let fs_search = FSSearch::new(environment);
         let result = fs_search
             .call(FSSearchInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -228,6 +246,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_case_insensitive() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         fs::write(
             temp_dir.path().join("test.txt"),
@@ -236,7 +255,7 @@ mod test {
         .await
         .unwrap();
 
-        let fs_search = FSSearch;
+        let fs_search = FSSearch::new(environment);
         let result = fs_search
             .call(FSSearchInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -254,12 +273,13 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_no_matches() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         fs::write(temp_dir.path().join("test.txt"), "content")
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let fs_search = FSSearch::new(environment);
         let result = fs_search
             .call(FSSearchInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -276,8 +296,9 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_invalid_regex() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
-        let fs_search = FSSearch;
+        let fs_search = FSSearch::new(environment);
         let result = fs_search
             .call(FSSearchInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -288,5 +309,59 @@ mod test {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid regex pattern"));
+    }
+
+    #[tokio::test]
+    async fn test_fs_search_hidden_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
+
+        fs::write(temp_dir.path().join(".hidden.txt"), "hidden test content")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("visible.txt"), "visible test content")
+            .await
+            .unwrap();
+
+        let fs_search = FSSearch::new(environment);
+        let result = fs_search
+            .call(FSSearchInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                regex: "test".to_string(),
+                file_pattern: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert!(result.iter().any(|p| p.contains("visible.txt")));
+        assert!(!result.iter().any(|p| p.contains(".hidden.txt")));
+    }
+
+    #[tokio::test]
+    async fn test_fs_search_gitignored_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
+
+        fs::write(temp_dir.path().join("ignored.txt"), "ignored test content")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("tracked.txt"), "tracked test content")
+            .await
+            .unwrap();
+
+        let fs_search = FSSearch::new(environment);
+        let result = fs_search
+            .call(FSSearchInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                regex: "test".to_string(),
+                file_pattern: None,
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert!(result.iter().any(|p| p.contains("tracked.txt")));
+        assert!(!result.iter().any(|p| p.contains("ignored.txt")));
     }
 }

@@ -21,7 +21,7 @@ impl FromIterator<Tool> for Live {
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
-            .collect::<HashMap<_, _>>();
+            .collect();
 
         Self { tools }
     }
@@ -89,14 +89,14 @@ impl ToolService for Live {
 impl Service {
     pub fn tool_service(env: Environment) -> impl ToolService {
         Live::from_iter([
-            Tool::new(FSRead),
-            Tool::new(FSWrite),
-            Tool::new(FSList),
-            Tool::new(FSSearch),
-            Tool::new(FSFileInfo),
-            Tool::new(FSReplace),
-            Tool::new(Outline),
-            Tool::new(Shell::new(env.cwd)),
+            Tool::new(FSRead::new(env.clone())),
+            Tool::new(FSWrite::new(env.clone())),
+            Tool::new(FSList::new(env.clone())),
+            Tool::new(FSSearch::new(env.clone())),
+            Tool::new(FSFileInfo::new(env.clone())),
+            Tool::new(FSReplace::new(env.clone())),
+            Tool::new(Outline::new(env.clone())),
+            Tool::new(Shell::new(env.clone())), 
             Tool::new(Think::default()),
         ])
     }
@@ -111,22 +111,23 @@ mod test {
 
     #[test]
     fn test_id() {
-        assert!(Tool::new(FSRead)
+        let env = Environment::default().cwd(".".into());
+        assert!(Tool::new(FSRead::new(env.clone()))
             .definition
             .name
             .into_string()
             .ends_with("fs_read"));
-        assert!(Tool::new(FSSearch)
+        assert!(Tool::new(FSSearch::new(env.clone()))
             .definition
             .name
             .into_string()
             .ends_with("fs_search"));
-        assert!(Tool::new(FSList)
+        assert!(Tool::new(FSList::new(env.clone()))
             .definition
             .name
             .into_string()
             .ends_with("fs_list"));
-        assert!(Tool::new(FSFileInfo)
+        assert!(Tool::new(FSFileInfo::new(env.clone()))
             .definition
             .name
             .into_string()

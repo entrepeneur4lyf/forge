@@ -2,12 +2,15 @@ use forge_domain::ToolCallService;
 use insta::assert_snapshot;
 use tempfile::TempDir;
 use tokio::fs;
+use crate::test_utils::setup_test_env;
 
-use crate::outline::{Outline, OutlineInput};
+use super::super::{Outline, OutlineInput};
 
 #[tokio::test]
 async fn rust_outline() {
     let temp_dir = TempDir::new().unwrap();
+    let environment = setup_test_env(&temp_dir).await;
+
     let content = r#"
 struct User {
     name: String,
@@ -27,7 +30,7 @@ impl User {
     let file_path = temp_dir.path().join("test.rs");
     fs::write(&file_path, content).await.unwrap();
 
-    let outline = Outline;
+    let outline = Outline::new(environment);
     let result = outline
         .call(OutlineInput { path: temp_dir.path().to_string_lossy().to_string() })
         .await

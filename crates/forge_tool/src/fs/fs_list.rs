@@ -1,6 +1,6 @@
-use std::path::Path;
+use std::path::PathBuf;
 
-use forge_domain::{ToolCallService, ToolDescription};
+use forge_domain::{Environment, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;
@@ -23,7 +23,15 @@ pub struct FSListInput {
 /// have created, as the user will let you know if the files were created
 /// successfully or not.
 #[derive(ToolDescription)]
-pub struct FSList;
+pub struct FSList {
+    environment: Environment,
+}
+
+impl FSList {
+    pub fn new(environment: Environment) -> Self {
+        Self { environment }
+    }
+}
 
 #[async_trait::async_trait]
 impl ToolCallService for FSList {
@@ -31,21 +39,27 @@ impl ToolCallService for FSList {
     type Output = Vec<String>;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        let dir = Path::new(&input.path);
-        if !dir.exists() {
+        let path = PathBuf::from(&input.path);
+        
+        // Validate the path before proceeding
+        if !self.validate_path(&path, &self.environment).await? {
+            return Err("Access to this path is not allowed".to_string());
+        }
+        
+        if !path.exists() {
             return Err("Directory does not exist".to_string());
         }
 
         let mut paths = Vec::new();
         let recursive = input.recursive.unwrap_or(false);
         let max_depth = if recursive { usize::MAX } else { 1 };
-        let walker = Walker::new(dir.to_path_buf()).with_max_depth(max_depth);
+        let walker = Walker::new(path.clone()).with_max_depth(max_depth);
 
         let files = walker.get().await.map_err(|e| e.to_string())?;
 
         for entry in files {
             // Skip the root directory itself
-            if entry.path == dir.to_string_lossy() {
+            if entry.path == path.to_string_lossy() {
                 continue;
             }
 
@@ -64,14 +78,15 @@ mod test {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
-
+    use crate::test_utils::setup_test_env;
     use super::*;
 
     #[tokio::test]
     async fn test_fs_list_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(environment);
         let result = fs_list
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -86,6 +101,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_with_files_and_dirs() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         fs::write(temp_dir.path().join("file1.txt"), "content1")
             .await
@@ -96,7 +112,7 @@ mod test {
         fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
         fs::create_dir(temp_dir.path().join("dir2")).await.unwrap();
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(environment);
         let result = fs_list
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -122,9 +138,10 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_nonexistent_directory() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let nonexistent_dir = temp_dir.path().join("nonexistent");
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(environment);
         let result = fs_list
             .call(FSListInput {
                 path: nonexistent_dir.to_string_lossy().to_string(),
@@ -138,6 +155,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_with_hidden_files() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         fs::write(temp_dir.path().join("regular.txt"), "content")
             .await
@@ -149,7 +167,7 @@ mod test {
             .await
             .unwrap();
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(environment);
         let result = fs_list
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -165,6 +183,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_recursive() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
 
         // Create nested directory structure
         fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
@@ -181,7 +200,7 @@ mod test {
             .await
             .unwrap();
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(environment);
 
         // Test recursive listing
         let result = fs_list
@@ -214,5 +233,27 @@ mod test {
         assert!(!result.iter().any(|p| p.contains("file1.txt")));
         assert!(!result.iter().any(|p| p.contains("subdir")));
         assert!(!result.iter().any(|p| p.contains("file2.txt")));
+    }
+
+    #[tokio::test]
+    async fn test_fs_list_gitignored_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
+
+        // Create a directory that's gitignored
+        fs::create_dir(temp_dir.path().join("ignored_dir")).await.unwrap();
+        fs::write(temp_dir.path().join(".gitignore"), "ignored_dir/\n").await.unwrap();
+        fs::write(temp_dir.path().join("ignored_dir/file.txt"), "content").await.unwrap();
+
+        let fs_list = FSList::new(environment);
+        let result = fs_list
+            .call(FSListInput {
+                path: temp_dir.path().join("ignored_dir").to_string_lossy().to_string(),
+                recursive: None,
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not allowed"));
     }
 }

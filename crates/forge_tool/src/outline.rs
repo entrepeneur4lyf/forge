@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use forge_domain::{ToolCallService, ToolDescription};
+use forge_domain::{Environment, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -134,7 +134,15 @@ pub struct OutlineInput {
 /// │impl Repository<User> for UserRepository
 /// ```
 #[derive(ToolDescription)]
-pub(crate) struct Outline;
+pub(crate) struct Outline {
+    environment: Environment,
+}
+
+impl Outline {
+    pub fn new(environment: Environment) -> Self {
+        Self { environment }
+    }
+}
 
 #[async_trait::async_trait]
 impl ToolCallService for Outline {
@@ -142,6 +150,13 @@ impl ToolCallService for Outline {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        let path = PathBuf::from(&input.path);
+        
+        // Validate the path before proceeding
+        if !self.validate_path(&path, &self.environment).await? {
+            return Err("Access to this path is not allowed".to_string());
+        }
+
         let extensions_to_languages = HashMap::from([
             ("rs", "rust"),
             ("js", "javascript"),
@@ -158,7 +173,7 @@ impl ToolCallService for Outline {
         let mut parsers: HashMap<&str, (Parser, Query)> = HashMap::new();
         let mut result = String::new();
 
-        let entries = WalkDir::new(&input.path)
+        let entries = WalkDir::new(&path)
             .into_iter()
             .filter_map(|e| e.ok())
             .filter(|e| {
@@ -174,9 +189,11 @@ impl ToolCallService for Outline {
             .collect::<Vec<_>>();
 
         for entry in entries {
-            let path = entry.path().to_path_buf();
-            if let Ok(content) = fs::read_to_string(&path).await {
-                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            let file_path = entry.path().to_path_buf();
+            // Skip the validation here since we already validated the root path
+            // and we're only accessing files under it
+            if let Ok(content) = fs::read_to_string(&file_path).await {
+                if let Some(ext) = file_path.extension().and_then(|e| e.to_str()) {
                     if let Some(&lang_name) =
                         extensions_to_languages.get(ext.to_lowercase().as_str())
                     {
@@ -190,13 +207,13 @@ impl ToolCallService for Outline {
                         }
 
                         if let Some((parser, query)) = parsers.get_mut(lang_name) {
-                            if let Some(file_output) = parse_file(&path, &content, parser, query) {
+                            if let Some(file_output) = parse_file(&file_path, &content, parser, query) {
                                 if !result.is_empty() {
                                     result.push_str("|----\n");
                                 }
                                 result.push_str(&format!(
                                     "{}\n",
-                                    path.file_name().unwrap().to_string_lossy()
+                                    file_path.file_name().unwrap().to_string_lossy()
                                 ));
                                 result.push_str(&file_output);
                             }

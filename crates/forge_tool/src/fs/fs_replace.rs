@@ -1,8 +1,8 @@
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use dissimilar::Chunk;
-use forge_domain::{ToolCallService, ToolDescription};
+use forge_domain::{Environment, ToolCallService, ToolDescription};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
@@ -51,7 +51,15 @@ pub struct FSReplaceInput {
     pub diff: String,
 }
 
-pub struct FSReplace;
+pub struct FSReplace {
+    environment: Environment,
+}
+
+impl FSReplace {
+    pub fn new(environment: Environment) -> Self {
+        Self { environment }
+    }
+}
 
 struct Block {
     search: String,
@@ -256,7 +264,7 @@ async fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<St
     Ok(result)
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct FSReplaceOutput {
     pub path: String,
     pub content: String,
@@ -270,8 +278,15 @@ impl ToolCallService for FSReplace {
     type Output = FSReplaceOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        let path = PathBuf::from(&input.path);
+        
+        // Validate the path before proceeding
+        if !self.validate_path(&path, &self.environment).await? {
+            return Err("Access to this path is not allowed".to_string());
+        }
+
         let blocks = parse_blocks(&input.diff)?;
-        let content = apply_changes(&input.path, blocks).await?;
+        let content = apply_changes(&path, blocks).await?;
         let syntax_checker = syn::validate(&input.path, &content).err();
         Ok(FSReplaceOutput { path: input.path, content, syntax_checker })
     }
@@ -280,22 +295,23 @@ impl ToolCallService for FSReplace {
 #[cfg(test)]
 mod test {
     use tempfile::TempDir;
-
+    use crate::test_utils::setup_test_env;
     use super::*;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
         fs::write(&path, content).await.map_err(|e| e.to_string())
     }
-
+    
     #[tokio::test]
     async fn test_whitespace_preservation() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.txt");
         let content = "    Hello World    \n  Test Line  \n   Goodbye World   \n";
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment);
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -317,11 +333,12 @@ mod test {
     #[tokio::test]
     async fn test_empty_search_new_file() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.txt");
 
         write_test_file(&file_path, "").await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment);
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -336,12 +353,13 @@ mod test {
     #[tokio::test]
     async fn test_multiple_blocks() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.txt");
         let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment);
         let diff = format!("{}\n    First Line    \n{}\n    New First    \n{}\n{}\n    Last Line    \n{}\n    New Last    \n{}\n",
             SEARCH, DIVIDER, REPLACE, SEARCH, DIVIDER, REPLACE).to_string();
 
@@ -359,12 +377,13 @@ mod test {
     #[tokio::test]
     async fn test_empty_block() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.txt");
         let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment);
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -380,14 +399,14 @@ mod test {
     #[tokio::test]
     async fn test_complex_newline_preservation() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.txt");
 
         // Test file with various newline patterns
         let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
-
+        let fs_replace = FSReplace::new(environment.clone());
         // Test 1: Replace content while preserving surrounding newlines
         let result1 = fs_replace
             .call(FSReplaceInput {
@@ -403,6 +422,7 @@ mod test {
             "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n// Footer comment\n\n\n"
         );
 
+        let fs_replace = FSReplace::new(environment.clone());
         // Test 2: Replace block with different newline pattern
         let result2 = fs_replace
             .call(FSReplaceInput {
@@ -421,6 +441,7 @@ mod test {
             "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n\n\n// Updated footer\n\n"
         );
 
+        let fs_replace = FSReplace::new(environment);
         // Test 3: Replace with empty lines preservation
         let result3 = fs_replace
             .call(FSReplaceInput {
@@ -443,6 +464,7 @@ mod test {
     #[tokio::test]
     async fn test_fuzzy_search_replace() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.txt");
 
         // Test file with typos and variations
@@ -456,7 +478,7 @@ mod test {
 "#;
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment.clone());
         // Search with different casing, spacing, and variable names
         let result = fs_replace
             .call(FSReplaceInput {
@@ -479,6 +501,7 @@ mod test {
 "#
         );
 
+        let fs_replace = FSReplace::new(environment);
         // Test fuzzy matching with more variations
         let result2 = fs_replace
             .call(FSReplaceInput {
@@ -505,6 +528,7 @@ mod test {
     #[tokio::test]
     async fn test_fuzzy_search_advanced() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.txt");
 
         // Test file with more complex variations
@@ -518,7 +542,7 @@ mod test {
 "#;
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment.clone());
         // Search with structural similarities but different variable names and spacing
         let result = fs_replace
             .call(FSReplaceInput {
@@ -541,6 +565,7 @@ mod test {
 "#
         );
 
+        let fs_replace = FSReplace::new(environment);
         // Test fuzzy matching with error handling changes
         let result2 = fs_replace
             .call(FSReplaceInput {
@@ -569,12 +594,13 @@ mod test {
     #[tokio::test]
     async fn test_invalid_rust_replace() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.rs");
         let content = "fn main() { let x = 42; }";
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment);
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -592,12 +618,13 @@ mod test {
     #[tokio::test]
     async fn test_valid_rust_replace() {
         let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("test.rs");
         let content = "fn main() { let x = 42; }";
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::new(environment);
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -608,5 +635,48 @@ mod test {
             .unwrap();
 
         assert_eq!(result.content, "fn main() { let x = 42; let y = x * 2; }\n");
+        assert!(result.syntax_checker.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_fs_replace_hidden_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
+        let file_path = temp_dir.path().join(".hidden.txt");
+        
+        write_test_file(&file_path, "original content").await.unwrap();
+
+        let fs_replace = FSReplace::new(environment);
+        let result = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{}\noriginal content\n{}\nmodified content\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not allowed"));
+    }
+
+    #[tokio::test]
+    async fn test_fs_replace_gitignored_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let environment = setup_test_env(&temp_dir).await;
+        let file_path = temp_dir.path().join("ignored.txt");
+        
+        write_test_file(&file_path, "original content").await.unwrap();
+
+        let fs_replace = FSReplace::new(environment);
+        let result = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{}\noriginal content\n{}\nmodified content\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not allowed"));
     }
 }

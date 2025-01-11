@@ -1,10 +1,9 @@
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_domain::{ToolCallService, ToolDescription};
+use forge_domain::{Environment, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
-use forge_walker::Walker;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -30,11 +29,11 @@ pub struct ShellOutput {
 #[derive(ToolDescription)]
 pub struct Shell {
     blacklist: HashSet<String>,
-    cwd: PathBuf,
+    environment: Environment,
 }
 
 impl Shell {
-    pub fn new(cwd: PathBuf) -> Self {
+    pub fn new(environment: Environment) -> Self {
         let mut blacklist = HashSet::new();
         // File System Destruction Commands
         blacklist.insert("rm".to_string());
@@ -67,65 +66,13 @@ impl Shell {
         blacklist.insert("reboot".to_string());
         blacklist.insert("init".to_string());
 
-        Shell { blacklist, cwd }
-    }
-
-    fn is_path(arg: &str) -> bool {
-        arg.starts_with('/')
-            || arg.starts_with("./")
-            || arg.starts_with("../")
-            || PathBuf::from(arg).exists()
-    }
-
-    async fn is_allowed_path(&self, path: &Path, base_path: &Path) -> Result<bool, String> {
-        // Ensure path is within working directory
-        let canonical_path =
-            std::fs::canonicalize(path).map_err(|e| format!("Unable to validate path: {}", e))?;
-        let canonical_base = std::fs::canonicalize(base_path)
-            .map_err(|e| format!("Unable to validate base path: {}", e))?;
-
-        if !canonical_path.starts_with(&canonical_base) {
-            return Ok(false);
-        }
-
-        // Get the list of allowed files from forge_walker (automatically handles hidden
-        // and gitignored files)
-        let walker = Walker::new(base_path.to_path_buf());
-        let allowed_files = walker
-            .get()
-            .await
-            .map_err(|e| format!("Failed to walk directory: {}", e))?;
-
-        // Convert the input path to be relative to base_path
-        let relative_path = canonical_path
-            .strip_prefix(&canonical_base)
-            .map_err(|_| "Failed to get relative path".to_string())?
-            .to_string_lossy()
-            .to_string();
-
-        // If the file is in the allowed files list, it's not hidden or gitignored
-        let is_allowed = allowed_files.iter().any(|f| f.path == relative_path);
-        Ok(is_allowed)
-    }
-
-    fn extract_paths(command: &str) -> Vec<PathBuf> {
-        shlex::split(command)
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|v| Self::is_path(v))
-            .map(PathBuf::from)
-            .collect()
+        Shell { blacklist, environment }
     }
 
     async fn validate_command(&self, shell_input: &ShellInput) -> Result<(), String> {
-        let cwd = self
-            .cwd
-            .canonicalize()
-            .map_err(|e| format!("Unable to validate path: {}", e))?;
-
-        let paths = Self::extract_paths(&shell_input.command);
+        let paths = self.extract_paths(&shell_input.command);
         for path in paths {
-            if !self.is_allowed_path(&path, &cwd).await? {
+            if !self.validate_path(&path, &self.environment).await? {
                 return Err("Access to this path is not allowed".to_string());
             }
         }
@@ -213,7 +160,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let shell = Shell::new(".".into());
+        let environment = Environment::default().cwd(env::current_dir().unwrap());
+        let shell = Shell::new(environment);
         let result = shell
             .call(ShellInput {
                 command: "echo 'Hello, World!'".to_string(),
@@ -229,7 +177,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let shell = Shell::new(".".into());
+        let environment = Environment::default().cwd(env::current_dir().unwrap());
+        let shell = Shell::new(environment);
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
@@ -264,7 +213,8 @@ mod tests {
     async fn test_access_hidden_file() {
         let temp = TempDir::new().unwrap();
         let base_path = create_test_files(&temp);
-        let shell = Shell::new(base_path.clone());
+        let environment = Environment::default().cwd(base_path.clone());
+        let shell = Shell::new(environment);
 
         let result = shell
             .call(ShellInput {
@@ -281,7 +231,8 @@ mod tests {
     async fn test_access_gitignored_file() {
         let temp = TempDir::new().unwrap();
         let base_path = create_test_files(&temp);
-        let shell = Shell::new(base_path.clone());
+        let environment = Environment::default().cwd(base_path.clone());
+        let shell = Shell::new(environment);
 
         let result = shell
             .call(ShellInput {
@@ -298,7 +249,8 @@ mod tests {
     async fn test_access_normal_file() {
         let temp = TempDir::new().unwrap();
         let base_path = create_test_files(&temp);
-        let shell = Shell::new(base_path.clone());
+        let environment = Environment::default().cwd(base_path.clone());
+        let shell = Shell::new(environment);
 
         let result = shell
             .call(ShellInput {
@@ -313,7 +265,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::new(".".into());
+        let environment = Environment::default().cwd(env::current_dir().unwrap());
+        let shell = Shell::new(environment);
         let result = shell
             .call(ShellInput {
                 command: "nonexistentcommand".to_string(),
@@ -328,7 +281,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_blacklisted_command() {
-        let shell = Shell::new(".".into());
+        let environment = Environment::default().cwd(env::current_dir().unwrap());
+        let shell = Shell::new(environment);
         let result = shell
             .call(ShellInput {
                 command: "rm -rf /".to_string(),
@@ -342,9 +296,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_command() {
-        let shell = Shell::new(".".into());
+        let environment = Environment::default().cwd(env::current_dir().unwrap());
+        let shell = Shell::new(environment);
         let result = shell
-            .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
+            .call(ShellInput { 
+                command: "".to_string(), 
+                cwd: env::current_dir().unwrap() 
+            })
             .await;
 
         assert!(result.is_err());
@@ -353,7 +311,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_access_outside_working_directory() {
-        let shell = Shell::new(".".into());
+        let environment = Environment::default().cwd(env::current_dir().unwrap());
+        let shell = Shell::new(environment);
         let result = shell
             .call(ShellInput {
                 command: "cat /etc/passwd".to_string(),
