@@ -299,10 +299,7 @@ mod tests {
         let environment = Environment::default().cwd(env::current_dir().unwrap());
         let shell = Shell::new(environment);
         let result = shell
-            .call(ShellInput { 
-                command: "".to_string(), 
-                cwd: env::current_dir().unwrap() 
-            })
+            .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
             .await;
 
         assert!(result.is_err());

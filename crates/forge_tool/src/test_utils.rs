@@ -16,7 +16,7 @@ pub async fn setup_test_env(dir: &TempDir) -> Environment {
     fs::write(dir.path().join(".gitignore"), "ignored.txt\n")
         .await
         .unwrap();
-    
+
     Environment::default().cwd(dir.path().to_path_buf())
 }
 

@@ -96,7 +96,7 @@ impl Service {
             Tool::new(FSFileInfo::new(env.clone())),
             Tool::new(FSReplace::new(env.clone())),
             Tool::new(Outline::new(env.clone())),
-            Tool::new(Shell::new(env.clone())), 
+            Tool::new(Shell::new(env.clone())),
             Tool::new(Think::default()),
         ])
     }

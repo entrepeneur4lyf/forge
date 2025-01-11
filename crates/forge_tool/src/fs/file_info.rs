@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use forge_domain::{Environment, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -33,7 +34,7 @@ impl ToolCallService for FSFileInfo {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let path = PathBuf::from(&input.path);
-        
+
         // Validate the path before proceeding
         if !self.validate_path(&path, &self.environment).await? {
             return Err("Access to this path is not allowed".to_string());
@@ -50,8 +51,9 @@ impl ToolCallService for FSFileInfo {
 mod test {
     use tempfile::TempDir;
     use tokio::fs;
-    use crate::test_utils::setup_test_env;
+
     use super::*;
+    use crate::test_utils::setup_test_env;
 
     #[tokio::test]
     async fn test_fs_file_info_on_file() {

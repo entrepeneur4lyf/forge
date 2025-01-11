@@ -1,28 +1,32 @@
 use std::path::{Path, PathBuf};
+
+use forge_walker::Walker;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use forge_walker::Walker;
 
 use crate::Environment;
 
 /// A trait that defines the interface for tool implementations.
 /// Each tool must implement this trait to be usable by the forge system.
 #[async_trait::async_trait]
-pub trait ToolCallService where Self: Send + Sync {
+pub trait ToolCallService
+where
+    Self: Send + Sync,
+{
     type Input: DeserializeOwned;
     type Output: Serialize;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String>;
 
-    /// Validates if a given path is allowed within the context of the current working directory
-    /// and is neither hidden nor gitignored. This default implementation can be used by all tools
-    /// that need path validation.
+    /// Validates if a given path is allowed within the context of the current
+    /// working directory and is neither hidden nor gitignored. This default
+    /// implementation can be used by all tools that need path validation.
     async fn validate_path(&self, path: &Path, environment: &Environment) -> Result<bool, String> {
         let cwd = environment.cwd.as_path();
-        
+
         // Ensure path is within working directory
-        let canonical_path = std::fs::canonicalize(path)
-            .map_err(|e| format!("Unable to validate path: {}", e))?;
+        let canonical_path =
+            std::fs::canonicalize(path).map_err(|e| format!("Unable to validate path: {}", e))?;
         let canonical_base = std::fs::canonicalize(cwd)
             .map_err(|e| format!("Unable to validate base path: {}", e))?;
 

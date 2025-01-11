@@ -40,12 +40,12 @@ impl ToolCallService for FSList {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let path = PathBuf::from(&input.path);
-        
+
         // Validate the path before proceeding
         if !self.validate_path(&path, &self.environment).await? {
             return Err("Access to this path is not allowed".to_string());
         }
-        
+
         if !path.exists() {
             return Err("Directory does not exist".to_string());
         }
@@ -78,8 +78,9 @@ mod test {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
-    use crate::test_utils::setup_test_env;
+
     use super::*;
+    use crate::test_utils::setup_test_env;
 
     #[tokio::test]
     async fn test_fs_list_empty_directory() {
@@ -241,14 +242,24 @@ mod test {
         let environment = setup_test_env(&temp_dir).await;
 
         // Create a directory that's gitignored
-        fs::create_dir(temp_dir.path().join("ignored_dir")).await.unwrap();
-        fs::write(temp_dir.path().join(".gitignore"), "ignored_dir/\n").await.unwrap();
-        fs::write(temp_dir.path().join("ignored_dir/file.txt"), "content").await.unwrap();
+        fs::create_dir(temp_dir.path().join("ignored_dir"))
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join(".gitignore"), "ignored_dir/\n")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("ignored_dir/file.txt"), "content")
+            .await
+            .unwrap();
 
         let fs_list = FSList::new(environment);
         let result = fs_list
             .call(FSListInput {
-                path: temp_dir.path().join("ignored_dir").to_string_lossy().to_string(),
+                path: temp_dir
+                    .path()
+                    .join("ignored_dir")
+                    .to_string_lossy()
+                    .to_string(),
                 recursive: None,
             })
             .await;

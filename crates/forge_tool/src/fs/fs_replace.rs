@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use dissimilar::Chunk;
@@ -228,7 +227,7 @@ impl ToolCallService for FSReplace {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let path = PathBuf::from(&input.path);
-        
+
         // Validate the path before proceeding
         if !self.validate_path(&path, &self.environment).await? {
             return Err("Access to this path is not allowed".to_string());
@@ -244,13 +243,14 @@ impl ToolCallService for FSReplace {
 #[cfg(test)]
 mod test {
     use tempfile::TempDir;
-    use crate::test_utils::setup_test_env;
+
     use super::*;
+    use crate::test_utils::setup_test_env;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
         fs::write(&path, content).await.map_err(|e| e.to_string())
     }
-    
+
     #[tokio::test]
     async fn test_whitespace_preservation() {
         let temp_dir = TempDir::new().unwrap();
@@ -592,15 +592,20 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join(".hidden.txt");
-        
-        write_test_file(&file_path, "original content").await.unwrap();
+
+        write_test_file(&file_path, "original content")
+            .await
+            .unwrap();
 
         let fs_replace = FSReplace::new(environment);
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\noriginal content\n{}\nmodified content\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
+                diff: format!(
+                    "{}\noriginal content\n{}\nmodified content\n{}\n",
+                    SEARCH, DIVIDER, REPLACE
+                )
+                .to_string(),
             })
             .await;
 
@@ -613,15 +618,20 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let environment = setup_test_env(&temp_dir).await;
         let file_path = temp_dir.path().join("ignored.txt");
-        
-        write_test_file(&file_path, "original content").await.unwrap();
+
+        write_test_file(&file_path, "original content")
+            .await
+            .unwrap();
 
         let fs_replace = FSReplace::new(environment);
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\noriginal content\n{}\nmodified content\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
+                diff: format!(
+                    "{}\noriginal content\n{}\nmodified content\n{}\n",
+                    SEARCH, DIVIDER, REPLACE
+                )
+                .to_string(),
             })
             .await;
 

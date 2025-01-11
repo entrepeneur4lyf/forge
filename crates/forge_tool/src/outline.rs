@@ -151,7 +151,7 @@ impl ToolCallService for Outline {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let path = PathBuf::from(&input.path);
-        
+
         // Validate the path before proceeding
         if !self.validate_path(&path, &self.environment).await? {
             return Err("Access to this path is not allowed".to_string());
@@ -207,7 +207,9 @@ impl ToolCallService for Outline {
                         }
 
                         if let Some((parser, query)) = parsers.get_mut(lang_name) {
-                            if let Some(file_output) = parse_file(&file_path, &content, parser, query) {
+                            if let Some(file_output) =
+                                parse_file(&file_path, &content, parser, query)
+                            {
                                 if !result.is_empty() {
                                     result.push_str("|----\n");
                                 }

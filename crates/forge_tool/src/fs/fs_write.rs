@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+
 use forge_domain::{Environment, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -33,9 +34,7 @@ impl FSWrite {
 
     /// Check if a path is allowed based on its name (without existence check)
     async fn is_path_allowed(&self, path: &PathBuf) -> bool {
-        let file_name = path.file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         // Don't allow hidden files
         if file_name.starts_with('.') {
@@ -46,11 +45,12 @@ impl FSWrite {
         let gitignore_path = self.environment.cwd.join(".gitignore");
         if gitignore_path.exists() {
             if let Ok(content) = tokio::fs::read_to_string(&gitignore_path).await {
-                let patterns: Vec<&str> = content.lines()
+                let patterns: Vec<&str> = content
+                    .lines()
                     .map(|s| s.trim())
                     .filter(|s| !s.is_empty() && !s.starts_with('#'))
                     .collect();
-                
+
                 for pattern in patterns {
                     // Simple exact match for now
                     if pattern == file_name {
@@ -71,7 +71,7 @@ impl ToolCallService for FSWrite {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let path = PathBuf::from(&input.path);
-        
+
         // First check if the path would be allowed
         if !self.is_path_allowed(&path).await {
             return Err("Access to this path is not allowed".to_string());
@@ -92,11 +92,7 @@ impl ToolCallService for FSWrite {
             .await
             .map_err(|e| e.to_string())?;
 
-        Ok(FSWriteOutput { 
-            path: input.path, 
-            syntax_checker, 
-            content: input.content 
-        })
+        Ok(FSWriteOutput { path: input.path, syntax_checker, content: input.content })
     }
 }
 
@@ -113,8 +109,9 @@ mod test {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
-    use crate::test_utils::setup_test_env;
+
     use super::*;
+    use crate::test_utils::setup_test_env;
 
     #[tokio::test]
     async fn test_fs_write_success() {

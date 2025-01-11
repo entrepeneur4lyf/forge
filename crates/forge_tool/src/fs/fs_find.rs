@@ -42,7 +42,7 @@ impl ToolCallService for FSSearch {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let path = PathBuf::from(&input.path);
-        
+
         // Validate the path before proceeding
         if !self.validate_path(&path, &self.environment).await? {
             return Err("Access to this path is not allowed".to_string());
@@ -77,7 +77,11 @@ impl ToolCallService for FSSearch {
             if let Some(ref pattern) = input.file_pattern {
                 let glob = glob::Pattern::new(pattern)
                     .map_err(|e| format!("Invalid glob pattern: {}", e))?;
-                if let Some(filename) = file_path.file_name().unwrap_or(file_path.as_os_str()).to_str() {
+                if let Some(filename) = file_path
+                    .file_name()
+                    .unwrap_or(file_path.as_os_str())
+                    .to_str()
+                {
                     if !glob.matches(filename) {
                         continue;
                     }
@@ -126,8 +130,9 @@ mod test {
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
-    use crate::test_utils::setup_test_env;
+
     use super::*;
+    use crate::test_utils::setup_test_env;
 
     #[tokio::test]
     async fn test_fs_search_content() {

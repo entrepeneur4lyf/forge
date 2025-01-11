@@ -2,15 +2,15 @@ use forge_domain::ToolCallService;
 use insta::assert_snapshot;
 use tempfile::TempDir;
 use tokio::fs;
-use crate::test_utils::setup_test_env;
 
 use super::super::{Outline, OutlineInput};
+use crate::test_utils::setup_test_env;
 
 #[tokio::test]
 async fn typescript_outline() {
     let temp_dir = TempDir::new().unwrap();
     let environment = setup_test_env(&temp_dir).await;
-    
+
     let content = r#"
 interface User {
     name: string;

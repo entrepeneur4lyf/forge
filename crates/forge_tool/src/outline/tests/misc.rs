@@ -2,9 +2,9 @@ use forge_domain::ToolCallService;
 use insta::assert_snapshot;
 use tempfile::TempDir;
 use tokio::fs;
-use crate::test_utils::setup_test_env;
 
 use super::super::{Outline, OutlineInput};
+use crate::test_utils::setup_test_env;
 
 #[tokio::test]
 async fn test_outline_multiple_files() {
