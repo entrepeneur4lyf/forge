@@ -47,7 +47,7 @@ impl Live {
 
         Ok(Environment {
             os: std::env::consts::OS.to_string(),
-            cwd: cwd.display().to_string().into(),
+            cwd,
             shell: if cfg!(windows) {
                 std::env::var("COMSPEC")?
             } else {
