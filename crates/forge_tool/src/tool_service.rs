@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use forge_domain::{Environment, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{
+    Environment, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+};
 use serde_json::Value;
 use tracing::debug;
 
@@ -133,7 +135,7 @@ mod test {
 
     #[test]
     fn test_usage_prompt() {
-        let env = Environment{cwd: ".".into(), ..Environment::default()};
+        let env = Environment { cwd: ".".into(), ..Environment::default() };
         let docs = Service::tool_service(env).usage_prompt();
 
         assert_snapshot!(docs);
@@ -141,7 +143,7 @@ mod test {
 
     #[test]
     fn test_tool_definition() {
-        let env = Environment{cwd: ".".into(), ..Environment::default()};
+        let env = Environment { cwd: ".".into(), ..Environment::default() };
         let tools = Service::tool_service(env).list();
         assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }

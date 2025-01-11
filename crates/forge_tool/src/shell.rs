@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use forge_domain::{ ToolCallService, ToolDescription};
+use forge_domain::{ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;
@@ -118,7 +118,8 @@ impl Shell {
     }
 
     async fn validate_command(&self, shell_input: &ShellInput) -> Result<(), String> {
-        let cwd = self.cwd
+        let cwd = self
+            .cwd
             .canonicalize()
             .map_err(|e| format!("Unable to validate path: {}", e))?;
 

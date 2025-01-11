@@ -55,7 +55,8 @@ impl Live {
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
 
         let storage = Arc::new(
-            Service::storage_service(cwd.to_str().unwrap()).expect("Failed to create storage service"),
+            Service::storage_service(cwd.to_str().unwrap())
+                .expect("Failed to create storage service"),
         );
 
         let chat_service = Arc::new(Service::chat_service(
@@ -74,7 +75,8 @@ impl Live {
             title_service,
         ));
         let config_storage = Arc::new(
-            Service::config_service(cwd.to_str().unwrap()).expect("Failed to create config storage service"),
+            Service::config_service(cwd.to_str().unwrap())
+                .expect("Failed to create config storage service"),
         );
 
         Self {
