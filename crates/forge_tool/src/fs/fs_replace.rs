@@ -1,18 +1,19 @@
-use std::fs::{self, File};
-use std::io::{BufReader, Read, Write};
+use std::io::Write;
 use std::path::Path;
 
 use dissimilar::Chunk;
 use forge_domain::{ToolCallService, ToolDescription};
-use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
+use tokio::fs;
+use tokio::io::AsyncReadExt;
 use tracing::{debug, error};
 
+use super::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
 use crate::fs::syn;
 
-fn persist_changes<P: AsRef<Path>>(
+async fn persist_changes<P: AsRef<Path>>(
     temp_file: NamedTempFile,
     path: P,
     backup_path: impl AsRef<Path>,
@@ -23,7 +24,7 @@ fn persist_changes<P: AsRef<Path>>(
             debug!("Successfully persisted changes to {:?}", path.as_ref());
             // Remove backup file on success
             if backup_path.as_ref().exists() {
-                if let Err(e) = fs::remove_file(&backup_path) {
+                if let Err(e) = fs::remove_file(&backup_path).await {
                     error!("Failed to remove backup file: {}", e);
                 }
             }
@@ -33,7 +34,7 @@ fn persist_changes<P: AsRef<Path>>(
             error!("Failed to persist changes: {}", e);
             // Restore from backup if persist failed
             if backup_path.as_ref().exists() {
-                if let Err(e) = fs::rename(&backup_path, &path) {
+                if let Err(e) = fs::rename(&backup_path, &path).await {
                     error!("Failed to restore from backup: {}", e);
                 }
             }
@@ -50,37 +51,48 @@ pub struct FSReplaceInput {
     pub diff: String,
 }
 
-/// Replace sections in a file using SEARCH/REPLACE blocks for precise
-/// modifications.
-///
-/// <<<<<<< SEARCH
-/// [exact content to find]
-/// =======
-/// [new content to replace with]
-/// >>>>>>> REPLACE
-///
-/// Rules:
-/// 1. SEARCH must match exactly (whitespace, indentation, line endings)
-/// 2. Each block replaces first match only
-/// 3. Keep blocks minimal - include only changing lines plus needed context
-/// 4. Complete lines only - no truncation
-/// 5. For moves: use 2 blocks (delete + insert)
-/// 6. For deletes: use empty REPLACE section
-///
-/// Example:
-/// <<<<<<< SEARCH
-/// def old_function(x):
-///     return x + 1
-/// =======
-/// def new_function(x, y=0):
-///     return x + y
-/// >>>>>>> REPLACE
-#[derive(ToolDescription)]
 pub struct FSReplace;
 
 struct Block {
     search: String,
     replace: String,
+}
+
+impl ToolDescription for FSReplace {
+    fn description(&self) -> String {
+        format!(
+            r#"        
+Replace sections in a file using SEARCH/REPLACE blocks for precise
+modifications.
+
+{}
+[exact content to find]
+{}
+[new content to replace with]
+{}
+
+Rules:
+1. SEARCH must match exactly (whitespace, indentation, line endings)
+2. Each block replaces first match only
+3. Keep blocks minimal - include only changing lines plus needed context
+4. Complete lines only - no truncation
+5. For moves: use 2 blocks (delete + insert)
+6. For deletes: use empty REPLACE section
+
+Example:
+{}
+def old_function(x):
+    return x + 1
+{}
+def new_function(x, y=0):
+    return x + y
+{}
+        "#,
+            SEARCH, DIVIDER, REPLACE, SEARCH, DIVIDER, REPLACE
+        )
+        .trim()
+        .to_string()
+    }
 }
 
 fn normalize_line_endings(text: &str) -> String {
@@ -106,8 +118,8 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
     // Normalize line endings in the diff string while preserving original newlines
     let diff = normalize_line_endings(diff);
 
-    while let Some(search_start) = diff[pos..].find("<<<<<<< SEARCH") {
-        let search_start = pos + search_start + "<<<<<<< SEARCH".len();
+    while let Some(search_start) = diff[pos..].find(SEARCH) {
+        let search_start = pos + search_start + SEARCH.len();
 
         // Include the newline after SEARCH marker in the position
         let search_start = match diff[search_start..].find('\n') {
@@ -117,19 +129,19 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
             }
         };
 
-        let Some(separator) = diff[search_start..].find("=======") else {
+        let Some(separator) = diff[search_start..].find(DIVIDER) else {
             return Err("Invalid diff format: Missing separator".to_string());
         };
         let separator = search_start + separator;
 
         // Include the newline after separator in the position
-        let separator_end = separator + "=======".len();
+        let separator_end = separator + DIVIDER.len();
         let separator_end = match diff[separator_end..].find('\n') {
             Some(nl) => separator_end + nl + 1,
             None => return Err("Invalid diff format: Missing newline after separator".to_string()),
         };
 
-        let Some(replace_end) = diff[separator_end..].find(">>>>>>> REPLACE") else {
+        let Some(replace_end) = diff[separator_end..].find(REPLACE) else {
             return Err("Invalid diff format: Missing end marker".to_string());
         };
         let replace_end = separator_end + replace_end;
@@ -139,7 +151,7 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
 
         blocks.push(Block { search: search.to_string(), replace: replace.to_string() });
 
-        pos = replace_end + ">>>>>>> REPLACE".len();
+        pos = replace_end + REPLACE.len();
         // Move past the newline after REPLACE if it exists
         if let Some(nl) = diff[pos..].find('\n') {
             pos += nl + 1;
@@ -153,7 +165,7 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
     Ok(blocks)
 }
 
-fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, String> {
+async fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, String> {
     let mut content = String::new();
     let mut result = String::new();
     let backup_path = path.as_ref().with_extension("bak");
@@ -166,28 +178,26 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
             write!(temp_file, "{}", blocks[0].replace).map_err(|e| e.to_string())?;
             result = blocks[0].replace.clone();
         }
-        persist_changes(temp_file, path, backup_path)?;
+        persist_changes(temp_file, path, backup_path).await?;
         return Ok(result);
     }
 
     // Create backup and read existing file
-    fs::copy(&path, &backup_path).map_err(|e| {
+    fs::copy(&path, &backup_path).await.map_err(|e| {
         error!("Failed to create backup: {}", e);
         e.to_string()
     })?;
     debug!("Created backup at {:?}", backup_path);
 
-    let file = File::open(&path).map_err(|e| {
+    let mut file = fs::File::open(&path).await.map_err(|e| {
         error!("Failed to open source file: {}", e);
         e.to_string()
     })?;
 
-    BufReader::new(file)
-        .read_to_string(&mut content)
-        .map_err(|e| {
-            error!("Failed to read file content: {}", e);
-            e.to_string()
-        })?;
+    file.read_to_string(&mut content).await.map_err(|e| {
+        error!("Failed to read file content: {}", e);
+        e.to_string()
+    })?;
 
     result = content.clone();
     let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
@@ -241,7 +251,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
 
     // Write the modified content
     write!(temp_file, "{}", result).map_err(|e| e.to_string())?;
-    persist_changes(temp_file, path, backup_path)?;
+    persist_changes(temp_file, path, backup_path).await?;
 
     Ok(result)
 }
@@ -261,7 +271,7 @@ impl ToolCallService for FSReplace {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let blocks = parse_blocks(&input.diff)?;
-        let content = apply_changes(&input.path, blocks)?;
+        let content = apply_changes(&input.path, blocks).await?;
         let syntax_checker = syn::validate(&input.path, &content).err();
         Ok(FSReplaceOutput { path: input.path, content, syntax_checker })
     }
@@ -269,17 +279,12 @@ impl ToolCallService for FSReplace {
 
 #[cfg(test)]
 mod test {
-    use std::fs::File;
-
     use tempfile::TempDir;
 
     use super::*;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
-        let mut file = File::create(path).map_err(|e| e.to_string())?;
-        file.write_all(content.as_bytes())
-            .map_err(|e| e.to_string())?;
-        Ok(())
+        fs::write(&path, content).await.map_err(|e| e.to_string())
     }
 
     #[tokio::test]
@@ -294,8 +299,11 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n    Hello World    \n=======\n    Hi World    \n>>>>>>> REPLACE\n"
-                    .to_string(),
+                diff: format!(
+                    "{}\n    Hello World    \n{}\n    Hi World    \n{}\n",
+                    SEARCH, DIVIDER, REPLACE
+                )
+                .to_string(),
             })
             .await
             .unwrap();
@@ -317,7 +325,7 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n=======\nNew content\n>>>>>>> REPLACE\n".to_string(),
+                diff: format!("{}\n{}\nNew content\n{}\n", SEARCH, DIVIDER, REPLACE).to_string(),
             })
             .await
             .unwrap();
@@ -334,7 +342,8 @@ mod test {
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        let diff = "<<<<<<< SEARCH\n    First Line    \n=======\n    New First    \n>>>>>>> REPLACE\n<<<<<<< SEARCH\n    Last Line    \n=======\n    New Last    \n>>>>>>> REPLACE\n".to_string();
+        let diff = format!("{}\n    First Line    \n{}\n    New First    \n{}\n{}\n    Last Line    \n{}\n    New Last    \n{}\n",
+            SEARCH, DIVIDER, REPLACE, SEARCH, DIVIDER, REPLACE).to_string();
 
         let result = fs_replace
             .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
@@ -359,7 +368,8 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n  Middle Line  \n=======\n>>>>>>> REPLACE\n".to_string(),
+                diff: format!("{}\n  Middle Line  \n{}\n{}\n", SEARCH, DIVIDER, REPLACE)
+                    .to_string(),
             })
             .await
             .unwrap();
@@ -382,7 +392,8 @@ mod test {
         let result1 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n    let x = 1;\n\n\n    console.log(x);\n=======\n    let y = 2;\n\n\n    console.log(y);\n>>>>>>> REPLACE\n".to_string(),
+                diff: format!("{}\n    let x = 1;\n\n\n    console.log(x);\n{}\n    let y = 2;\n\n\n    console.log(y);\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
             })
             .await
             .unwrap();
@@ -396,7 +407,11 @@ mod test {
         let result2 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n\n// Footer comment\n\n\n=======\n\n\n\n// Updated footer\n\n>>>>>>> REPLACE\n".to_string(),
+                diff: format!(
+                    "{}\n\n// Footer comment\n\n\n{}\n\n\n\n// Updated footer\n\n{}\n",
+                    SEARCH, DIVIDER, REPLACE
+                )
+                .to_string(),
             })
             .await
             .unwrap();
@@ -410,7 +425,11 @@ mod test {
         let result3 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n\n\n// Header comment\n\n\n=======\n\n\n\n// New header\n\n\n\n>>>>>>> REPLACE\n".to_string(),
+                diff: format!(
+                    "{}\n\n\n// Header comment\n\n\n{}\n\n\n\n// New header\n\n\n\n{}\n",
+                    SEARCH, DIVIDER, REPLACE
+                )
+                .to_string(),
             })
             .await
             .unwrap();
@@ -442,15 +461,8 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-  for (const itm of items) {
-    total += itm.price;
-=======
-  for (const item of items) {
-    total += item.price * item.quantity;
->>>>>>> REPLACE
-"#
-                .to_string(),
+                diff: format!("{}\n  for (const itm of items) {{\n    total += itm.price;\n{}\n  for (const item of items) {{\n    total += item.price * item.quantity;\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
             })
             .await
             .unwrap();
@@ -471,15 +483,8 @@ mod test {
         let result2 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-function calculateTotal(items) {
-  let total = 0;
-=======
-function computeTotal(items, tax = 0) {
-  let total = 0.0;
->>>>>>> REPLACE
-"#
-                .to_string(),
+                diff: format!("{}\nfunction calculateTotal(items) {{\n  let total = 0;\n{}\nfunction computeTotal(items, tax = 0) {{\n  let total = 0.0;\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
             })
             .await
             .unwrap();
@@ -518,15 +523,8 @@ function computeTotal(items, tax = 0) {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-  async getUserById(userId) {
-    const user = await db.findOne({ id: userId });
-=======
-  async findUser(id, options = {}) {
-    const user = await this.db.findOne({ userId: id, ...options });
->>>>>>> REPLACE
-"#
-                .to_string(),
+                diff: format!("{}\n  async getUserById(userId) {{\n    const user = await db.findOne({{ id: userId }});\n{}\n  async findUser(id, options = {{}}) {{\n    const user = await this.db.findOne({{ userId: id, ...options }});\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
             })
             .await
             .unwrap();
@@ -547,17 +545,8 @@ function computeTotal(items, tax = 0) {
         let result2 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-    if (!user) throw new Error('User not found');
-    return user;
-=======
-    if (!user) {
-      throw new UserNotFoundError(id);
-    }
-    return this.sanitizeUser(user);
->>>>>>> REPLACE
-"#
-                .to_string(),
+                diff: format!("{}\n    if (!user) throw new Error('User not found');\n    return user;\n{}\n    if (!user) {{\n      throw new UserNotFoundError(id);\n    }}\n    return this.sanitizeUser(user);\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
             })
             .await
             .unwrap();
@@ -589,7 +578,11 @@ function computeTotal(items, tax = 0) {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nfn main() { let x = 42; }\n=======\nfn main() { let x = \n>>>>>>> REPLACE\n".to_string(),
+                diff: format!(
+                    "{}\nfn main() {{ let x = 42; }}\n{}\nfn main() {{ let x = \n{}\n",
+                    SEARCH, DIVIDER, REPLACE
+                )
+                .to_string(),
             })
             .await;
 
@@ -608,7 +601,8 @@ function computeTotal(items, tax = 0) {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nfn main() { let x = 42; }\n=======\nfn main() { let x = 42; let y = x * 2; }\n>>>>>>> REPLACE\n".to_string(),
+                diff: format!("{}\nfn main() {{ let x = 42; }}\n{}\nfn main() {{ let x = 42; let y = x * 2; }}\n{}\n",
+                    SEARCH, DIVIDER, REPLACE).to_string(),
             })
             .await
             .unwrap();
