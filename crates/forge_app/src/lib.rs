@@ -1,12 +1,8 @@
-mod context;
-mod ide;
-mod log;
 mod repo;
-mod routes;
+mod ide;
 mod schema;
 mod service;
 mod sqlite;
 
 pub use repo::*;
-pub use routes::Routes;
 pub use service::{APIService, Service};

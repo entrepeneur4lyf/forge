@@ -111,7 +111,7 @@ pub mod tests {
     use forge_domain::{Ide, Workspace, WorkspaceId};
 
     use super::*;
-    use crate::service::file_read::tests::TestFileReadService;
+    use crate::service::test::TestFileReadService;
 
     struct MockIdeRepository;
 
