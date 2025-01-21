@@ -35,15 +35,6 @@ impl IdeRepository for Code {
     }
 
     async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
-        get_workspace_inner(ide.clone()).await
+        Db::new(ide.clone())?.get_workspace().await
     }
-}
-
-async fn get_workspace_inner(workspace_id: WorkspaceId) -> anyhow::Result<Workspace> {
-    let mut ans = Workspace::default().workspace_id(workspace_id.clone());
-    let db = Db::new(workspace_id.as_str())?;
-
-    ans = ans.focused_file(db.extract_focused_file()?);
-    ans = ans.opened_files(db.extract_active_files()?);
-    Ok(ans)
 }

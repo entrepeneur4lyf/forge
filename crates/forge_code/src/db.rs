@@ -2,25 +2,38 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::anyhow;
+use forge_domain::{Workspace, WorkspaceId};
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
 
 pub struct Db {
     pub conn: Connection,
+    pub workspace_id: WorkspaceId,
 }
 
 impl Db {
-    pub fn new(workspace_id: &str) -> anyhow::Result<Self> {
+    pub fn new(workspace_id: WorkspaceId) -> anyhow::Result<Self> {
         let conn = Connection::open(
-            PathBuf::from(workspace_id)
+            PathBuf::from(workspace_id.as_str())
                 .join("state.vscdb")
                 .to_string_lossy()
                 .to_string(),
         )?;
 
-        Ok(Self { conn })
+        Ok(Self { conn, workspace_id })
     }
-    pub fn extract_focused_file(&self) -> anyhow::Result<PathBuf> {
+
+    pub async fn get_workspace(self) -> anyhow::Result<Workspace> {
+        let mut ans = Workspace::default();
+
+        ans = ans.focused_file(self.extract_focused_file()?);
+        ans = ans.opened_files(self.extract_active_files()?);
+        ans = ans.workspace_id(self.workspace_id);
+
+        Ok(ans)
+    }
+
+    fn extract_focused_file(&self) -> anyhow::Result<PathBuf> {
         let key = "workbench.explorer.treeViewState";
         let mut stmt = self
             .conn
@@ -36,7 +49,7 @@ impl Db {
         Err(anyhow!("Focused file not found"))
     }
 
-    pub fn extract_active_files(&self) -> anyhow::Result<HashSet<PathBuf>> {
+    fn extract_active_files(&self) -> anyhow::Result<HashSet<PathBuf>> {
         let key = "memento/workbench.parts.editor";
         let mut stmt = self
             .conn
