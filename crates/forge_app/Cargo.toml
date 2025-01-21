@@ -36,6 +36,7 @@ anyhow = "1.0.75"
 forge_code = { path = "../forge_code" }
 
 [dev-dependencies]
+futures = "0.3.31"
 insta = "1.41.1"
 pretty_assertions = "1.4.1"
 tempfile = "3.10.1"
