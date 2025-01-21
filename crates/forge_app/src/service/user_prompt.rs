@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::IdeRepository;
-use forge_domain::ChatRequest;
+use forge_domain::{ChatRequest, IdeRepository};
 use forge_prompt::Prompt;
 use handlebars::Handlebars;
 use serde::Serialize;
