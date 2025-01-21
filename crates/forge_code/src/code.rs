@@ -463,6 +463,8 @@ mod tests {
 
 #[cfg(test)]
 mod partial_integration_tests {
+    use std::path::PathBuf;
+
     use tempfile::TempDir;
 
     use crate::code::get_vscode_instance;
@@ -533,26 +535,23 @@ mod partial_integration_tests {
         );
         assert!(ide.version.is_none(), "Version should be None");
     }
-
+    // TODO: make these tests safe for windows
     #[tokio::test]
     async fn test_get_vscode_instance_different_project() {
         let dir = TempDir::new().unwrap();
+        let hash = "another_hash";
 
         // Create User directory structure
-        std::fs::create_dir_all(dir.path().join("User/globalStorage")).unwrap();
-        std::fs::create_dir_all(dir.path().join("User/workspaceStorage/another_hash")).unwrap();
+        std::fs::create_dir_all(dir.path().join("User").join("globalStorage")).unwrap();
+        std::fs::create_dir_all(dir.path().join("User").join("workspaceStorage").join(hash))
+            .unwrap();
 
         // Create storage.json with a different project
         let storage_json = serde_json::json!({
             "windowsState": {
                 "lastActiveWindow": {
                     "folder": "file:///home/foo/OtherProject"
-                },
-                "openedWindows": [
-                    {
-                        "folder": "file:///home/foo/OtherProject"
-                    }
-                ]
+                }
             }
         });
         std::fs::write(
@@ -567,7 +566,10 @@ mod partial_integration_tests {
         });
         std::fs::write(
             dir.path()
-                .join("User/workspaceStorage/another_hash/workspace.json"),
+                .join("User")
+                .join("workspaceStorage")
+                .join(hash)
+                .join("workspace.json"),
             serde_json::to_string_pretty(&workspace_json).unwrap(),
         )
         .unwrap();
@@ -586,5 +588,73 @@ mod partial_integration_tests {
 
         // Assertions
         assert!(ans.is_none(), "Expected None for a different project");
+    }
+
+    #[tokio::test]
+    async fn test_get_vscode_instance_different_projects() {
+        let dir = TempDir::new().unwrap();
+        let hash = "cur_hash";
+
+        // Create User directory structure
+        std::fs::create_dir_all(dir.path().join("User").join("globalStorage")).unwrap();
+        std::fs::create_dir_all(dir.path().join("User").join("workspaceStorage").join(hash))
+            .unwrap();
+
+        // Create storage.json with a different project
+        let storage_json = serde_json::json!({
+            "windowsState": {
+                "lastActiveWindow": {
+                    "folder": "file:///home/foo/OtherProject"
+                },
+                "openedWindows": [
+                    {
+                        "folder": "file:///home/foo/OtherProject",
+                        "folder": "file:///home/foo/CurProject",
+                    }
+                ]
+            }
+        });
+        std::fs::write(
+            dir.path()
+                .join("User")
+                .join("globalStorage")
+                .join("storage.json"),
+            serde_json::to_string_pretty(&storage_json).unwrap(),
+        )
+        .unwrap();
+
+        let workspace_json = serde_json::json!({
+            "folder": "file:///home/foo/CurProject"
+        });
+        std::fs::write(
+            dir.path()
+                .join("User")
+                .join("workspaceStorage")
+                .join(hash)
+                .join("workspace.json"),
+            serde_json::to_string_pretty(&workspace_json).unwrap(),
+        )
+        .unwrap();
+
+        let cmd = vec![
+            format!(
+                "/usr/lib/electron32/electron --user-data-dir={}",
+                dir.path().display()
+            ),
+            "--vscode-window-config".to_string(),
+        ];
+
+        let working_directory = "/home/foo/dont/care".to_string();
+        let cwd = "/home/foo/CurProject";
+        let ans = get_vscode_instance(cmd, working_directory, cwd, 0).await;
+        assert!(ans.is_some());
+        assert_eq!(
+            ans.unwrap().workspace_id.as_str(),
+            dir.path()
+                .join("User")
+                .join("workspaceStorage")
+                .join("cur_hash")
+                .to_string_lossy()
+        );
     }
 }
