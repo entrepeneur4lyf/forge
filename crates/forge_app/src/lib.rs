@@ -1,5 +1,5 @@
-mod repo;
 mod ide;
+mod repo;
 mod schema;
 mod service;
 mod sqlite;
