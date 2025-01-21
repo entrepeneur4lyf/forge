@@ -177,14 +177,16 @@ fn check_search_dir_condition(json_data: &Value, cwd: &str, index: usize) -> boo
         .ok()
         .and_then(|results| results.first().cloned())
         .and_then(|folder| folder.as_str())
-        .and_then(|folder| folder.strip_prefix("file://").map(convert_path)).is_some_and(|path| path == cwd);
+        .and_then(|folder| folder.strip_prefix("file://").map(convert_path))
+        .is_some_and(|path| path == cwd);
 
     // Check if the `lastActiveWindow.folder` matches the `cwd`
     let b = jsonpath_lib::select(json_data, "$.windowsState.lastActiveWindow.folder")
         .ok()
         .and_then(|results| results.first().cloned())
         .and_then(|folder| folder.as_str())
-        .and_then(|folder| folder.strip_prefix("file://").map(convert_path)).is_some_and(|path| path == cwd);
+        .and_then(|folder| folder.strip_prefix("file://").map(convert_path))
+        .is_some_and(|path| path == cwd);
 
     a || b
 }
