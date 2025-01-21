@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
@@ -9,19 +10,10 @@ pub struct Workspace {
     pub workspace_id: WorkspaceId,
 
     /// List of open files in the IDE
-    pub opened_files: Vec<PathBuf>,
+    pub opened_files: HashSet<PathBuf>,
 
     /// The file that is currently focused in the IDE
     pub focused_file: PathBuf,
-}
-
-#[derive(Debug, derive_more::From)]
-pub struct ProcessId(u32);
-
-impl ProcessId {
-    pub fn as_u32(&self) -> u32 {
-        self.0
-    }
 }
 
 #[derive(Debug, Default, Clone, derive_more::From)]
@@ -38,7 +30,6 @@ impl WorkspaceId {
 pub struct Ide {
     pub name: String,
     pub version: Option<String>,
-    pub process: ProcessId,
     pub working_directory: PathBuf,
     pub workspace_id: WorkspaceId,
 }

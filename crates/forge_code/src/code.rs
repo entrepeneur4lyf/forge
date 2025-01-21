@@ -162,15 +162,13 @@ async fn get_all_vscode_instances(cwd: &str) -> anyhow::Result<Vec<Ide>> {
             .map(|v| v.to_string_lossy().to_string())
             .collect::<Vec<_>>();
 
-        let pid = v.pid().as_u32();
-
         let working_directory = v
             .cwd()
             .unwrap_or(Path::new(""))
             .to_string_lossy()
             .to_string();
 
-        if let Some(ide) = get_vscode_instance(cmd, pid, working_directory, cwd, i).await {
+        if let Some(ide) = get_vscode_instance(cmd, working_directory, cwd, i).await {
             ans.push(ide);
         }
     }
@@ -180,7 +178,6 @@ async fn get_all_vscode_instances(cwd: &str) -> anyhow::Result<Vec<Ide>> {
 
 async fn get_vscode_instance(
     cmd: Vec<String>,
-    pid: u32,
     working_directory: String,
     cwd: &str,
     index: usize,
@@ -189,7 +186,6 @@ async fn get_vscode_instance(
         return Some(Ide {
             name: "VS Code".to_string(),
             version: None,
-            process: pid.into(),
             working_directory: working_directory.into(),
             workspace_id: workspace_id.into(),
         });
@@ -241,7 +237,7 @@ async fn get_workspace_inner(workspace_id: WorkspaceId) -> anyhow::Result<Worksp
     Ok(ans)
 }
 
-fn extract_active_files(conn: &Connection) -> anyhow::Result<Vec<PathBuf>> {
+fn extract_active_files(conn: &Connection) -> anyhow::Result<HashSet<PathBuf>> {
     let key = "memento/workbench.parts.editor";
     let mut stmt = conn.prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
     let value: Option<String> = stmt
@@ -255,7 +251,7 @@ fn extract_active_files(conn: &Connection) -> anyhow::Result<Vec<PathBuf>> {
     Err(anyhow!("Focused file not found"))
 }
 
-fn active_files_path(json_data: &str) -> anyhow::Result<Vec<PathBuf>> {
+fn active_files_path(json_data: &str) -> anyhow::Result<HashSet<PathBuf>> {
     let parsed: Value = serde_json::from_str(json_data).expect("Invalid JSON");
     let values = jsonpath_lib::Selector::new()
         .str_path("$['editorpart.state'].serializedGrid.root.data[0].data.editors[*].value")?
@@ -270,12 +266,12 @@ fn active_files_path(json_data: &str) -> anyhow::Result<Vec<PathBuf>> {
         .map(serde_json::from_str)
         .filter_map(|v: serde_json::Result<Value>| v.ok())
         .collect::<Vec<_>>();
-    let mut ans = vec![];
+    let mut ans = HashSet::new();
 
     for v in value.iter() {
         for v in final_selector.value(v).select()? {
             let val = v.as_str().ok_or(anyhow!("Invalid JSON"))?;
-            ans.push(PathBuf::from(val));
+            ans.insert(PathBuf::from(val));
         }
     }
     Ok(ans)
@@ -520,14 +516,13 @@ mod partial_integration_tests {
         let pid = 269427;
         let working_directory = "/home/ssdd/RustroverProjects/code-forge".to_string();
         let cwd = "/home/ssdd/RustroverProjects/code-forge";
-        let ans = get_vscode_instance(cmd, pid, working_directory, cwd, 0).await;
+        let ans = get_vscode_instance(cmd, working_directory, cwd, 0).await;
 
         // Assertions
         assert!(ans.is_some(), "Expected Some(Ide), but got None");
 
         let ide = ans.unwrap();
         assert_eq!(ide.name, "VS Code", "IDE name mismatch");
-        assert_eq!(ide.process.as_u32(), 269427, "PID mismatch");
         assert_eq!(
             ide.working_directory.to_string_lossy(),
             "/home/ssdd/RustroverProjects/code-forge",
@@ -586,10 +581,9 @@ mod partial_integration_tests {
             "--vscode-window-config".to_string(),
         ];
 
-        let pid = 269428;
         let working_directory = "/home/ssdd/OtherProject".to_string();
         let cwd = "/home/ssdd/RustroverProjects/code-forge";
-        let ans = get_vscode_instance(cmd, pid, working_directory, cwd, 0).await;
+        let ans = get_vscode_instance(cmd, working_directory, cwd, 0).await;
 
         // Assertions
         assert!(ans.is_none(), "Expected None for a different project");
