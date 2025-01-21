@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -86,7 +87,7 @@ impl UserPromptService for Live {
 }
 
 impl Live {
-    pub fn opened_files_xml(opened_files: &[PathBuf], ide: &str) -> String {
+    pub fn opened_files_xml(opened_files: &HashSet<PathBuf>, ide: &str) -> String {
         opened_files
             .iter()
             .map(|f| f.to_string_lossy())

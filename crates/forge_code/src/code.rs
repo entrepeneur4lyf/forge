@@ -479,11 +479,11 @@ mod partial_integration_tests {
         let storage_json = serde_json::json!({
             "windowsState": {
                 "lastActiveWindow": {
-                    "folder": "file:///home/ssdd/RustroverProjects/code-forge"
+                    "folder": "file:///home/foo/RustroverProjects/code-forge"
                 },
                 "openedWindows": [
                     {
-                        "folder": "file:///home/ssdd/RustroverProjects/code-forge"
+                        "folder": "file:///home/foo/RustroverProjects/code-forge"
                     }
                 ]
             }
@@ -496,7 +496,7 @@ mod partial_integration_tests {
 
         // Create workspace.json
         let workspace_json = serde_json::json!({
-            "folder": "file:///home/ssdd/RustroverProjects/code-forge"
+            "folder": "file:///home/foo/RustroverProjects/code-forge"
         });
         std::fs::write(
             dir.path()
@@ -513,9 +513,8 @@ mod partial_integration_tests {
             "--vscode-window-config".to_string(), // Simulate VSCode window config
         ];
 
-        let pid = 269427;
-        let working_directory = "/home/ssdd/RustroverProjects/code-forge".to_string();
-        let cwd = "/home/ssdd/RustroverProjects/code-forge";
+        let working_directory = "/home/foo/RustroverProjects/code-forge".to_string();
+        let cwd = "/home/foo/RustroverProjects/code-forge";
         let ans = get_vscode_instance(cmd, working_directory, cwd, 0).await;
 
         // Assertions
@@ -525,7 +524,7 @@ mod partial_integration_tests {
         assert_eq!(ide.name, "VS Code", "IDE name mismatch");
         assert_eq!(
             ide.working_directory.to_string_lossy(),
-            "/home/ssdd/RustroverProjects/code-forge",
+            "/home/foo/RustroverProjects/code-forge",
             "Working directory mismatch"
         );
         assert!(
@@ -547,11 +546,11 @@ mod partial_integration_tests {
         let storage_json = serde_json::json!({
             "windowsState": {
                 "lastActiveWindow": {
-                    "folder": "file:///home/ssdd/OtherProject"
+                    "folder": "file:///home/foo/OtherProject"
                 },
                 "openedWindows": [
                     {
-                        "folder": "file:///home/ssdd/OtherProject"
+                        "folder": "file:///home/foo/OtherProject"
                     }
                 ]
             }
@@ -564,7 +563,7 @@ mod partial_integration_tests {
 
         // Create workspace.json for a different project
         let workspace_json = serde_json::json!({
-            "folder": "file:///home/ssdd/OtherProject"
+            "folder": "file:///home/foo/OtherProject"
         });
         std::fs::write(
             dir.path()
@@ -581,8 +580,8 @@ mod partial_integration_tests {
             "--vscode-window-config".to_string(),
         ];
 
-        let working_directory = "/home/ssdd/OtherProject".to_string();
-        let cwd = "/home/ssdd/RustroverProjects/code-forge";
+        let working_directory = "/home/foo/OtherProject".to_string();
+        let cwd = "/home/foo/RustroverProjects/code-forge";
         let ans = get_vscode_instance(cmd, working_directory, cwd, 0).await;
 
         // Assertions
