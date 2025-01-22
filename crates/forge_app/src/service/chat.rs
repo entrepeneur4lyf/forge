@@ -3,13 +3,12 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::{
     ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ProviderService,
-    ResultStream, Role, ToolCall, ToolCallFull,
+    ResultStream, Role, ToolCall, ToolCallFull, ToolService,
 };
 use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
-use super::tool_service::ToolService;
 use super::{PromptService, Service};
 
 #[async_trait::async_trait]
@@ -224,7 +223,7 @@ mod tests {
     use forge_domain::{
         ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
         FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName,
-        ToolResult,
+        ToolResult, ToolService,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
@@ -232,7 +231,6 @@ mod tests {
 
     use super::{ChatRequest, ChatService, Live};
     use crate::service::test::{TestPrompt, TestProvider};
-    use crate::service::tool_service::ToolService;
 
     struct TestToolService {
         result: Mutex<Vec<Value>>,
@@ -291,7 +289,7 @@ mod tests {
             } else {
                 self.system_prompt.as_str()
             };
-            let system_prompt = Arc::new(TestPrompt::default().system(system_prompt_message));
+            let system_prompt = Arc::new(TestPrompt::new(system_prompt_message));
             let tool = Arc::new(TestToolService::new(self.tools.clone()));
             let user_prompt = Arc::new(TestPrompt::default());
             let chat = Live::new(
