@@ -7,11 +7,11 @@ use forge_walker::Walker;
 use serde_json::Value;
 use sysinfo::System;
 
-pub struct Instances<'a> {
+pub struct Process<'a> {
     cwd: &'a str,
 }
 
-impl<'a> Instances<'a> {
+impl<'a> Process<'a> {
     pub fn new(cwd: &'a str) -> Self {
         Self { cwd }
     }
@@ -141,33 +141,6 @@ fn convert_path_inner(v: &str, os: &str) -> String {
         v.to_string()
     }
 }
-
-/*fn check_search_dir_condition(json: Storage, cwd: &str, index: usize) -> bool {
-    let a = json
-        .windows_state
-        .opened_windows
-        .iter()
-        .enumerate()
-        .any(|(i, folder)| {
-            i == index
-                && folder
-                .folder
-                .strip_prefix("file://")
-                .map(convert_path)
-                .unwrap_or_default()
-                .eq(&cwd)
-        });
-
-    let b = json
-        .windows_state
-        .last_active_window
-        .folder
-        .strip_prefix("file://")
-        .map(convert_path)
-        .unwrap_or_default()
-        .eq(&cwd);
-    a || b
-}*/
 
 fn check_search_dir_condition(json_data: &Value, cwd: &str, index: usize) -> bool {
     // Check if the `openedWindows` array at the given index matches the `cwd`

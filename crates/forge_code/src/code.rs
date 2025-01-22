@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
 
 use crate::db::Db;
-use crate::instances::Instances;
+use crate::process::Process;
 
 /// Represents Visual Studio Code IDE interaction
 pub struct Code {
@@ -31,7 +31,7 @@ impl Code {
 #[async_trait]
 impl IdeRepository for Code {
     async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>> {
-        Instances::new(&self.root_dir).instances().await
+        Process::new(&self.root_dir).instances().await
     }
 
     async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
