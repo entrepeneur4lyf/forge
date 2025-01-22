@@ -15,8 +15,8 @@ impl<'a> Process<'a> {
     pub fn new(cwd: &'a str) -> Self {
         Self { cwd }
     }
-    pub async fn instances(&'a self) -> anyhow::Result<Vec<Ide>> {
-        let mut ans = vec![];
+    pub async fn instances(&'a self) -> anyhow::Result<HashSet<Ide>> {
+        let mut ans = HashSet::new();
         let mut system = System::new_all();
         system.refresh_all();
 
@@ -49,7 +49,7 @@ impl<'a> Process<'a> {
                 .to_string();
 
             if let Some(ide) = get_instance(cmd, working_directory, self.cwd, i).await {
-                ans.push(ide);
+                ans.insert(ide);
             }
         }
 

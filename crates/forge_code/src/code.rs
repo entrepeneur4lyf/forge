@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
@@ -30,7 +31,7 @@ impl Code {
 
 #[async_trait]
 impl IdeRepository for Code {
-    async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>> {
+    async fn get_active_ides(&self) -> anyhow::Result<HashSet<Ide>> {
         Process::new(&self.root_dir).instances().await
     }
 

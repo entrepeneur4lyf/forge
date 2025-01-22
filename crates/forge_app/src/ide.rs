@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use forge_code::Code;
 use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
 
@@ -26,8 +28,8 @@ impl Service {
 
 #[async_trait::async_trait]
 impl IdeRepository for Live {
-    async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>> {
-        let mut files = vec![];
+    async fn get_active_ides(&self) -> anyhow::Result<HashSet<Ide>> {
+        let mut files = HashSet::new();
         for ide in &self.ides {
             if let Ok(ide_files) = ide.get_active_ides().await {
                 files.extend(ide_files);
@@ -50,7 +52,7 @@ impl IdeRepository for Live {
 
 #[async_trait::async_trait]
 impl IdeRepository for IdeType {
-    async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>> {
+    async fn get_active_ides(&self) -> anyhow::Result<HashSet<Ide>> {
         match self {
             IdeType::VsCode(ide) => ide.get_active_ides().await,
         }

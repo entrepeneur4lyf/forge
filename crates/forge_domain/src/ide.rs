@@ -16,7 +16,7 @@ pub struct Workspace {
     pub focused_file: PathBuf,
 }
 
-#[derive(Debug, Default, Clone, derive_more::From)]
+#[derive(Debug, Default, Clone, derive_more::From, PartialEq, Eq, Hash)]
 pub struct WorkspaceId(String);
 
 impl WorkspaceId {
@@ -26,7 +26,7 @@ impl WorkspaceId {
 }
 
 /// Represents an IDE. Contains meta information about the IDE.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Ide {
     pub name: String,
     pub version: Option<String>,
@@ -43,7 +43,7 @@ pub struct IdeFilesInfo {
 #[async_trait]
 pub trait IdeRepository: Send + Sync {
     /// List of all the IDEs that are running on the system on the CWD.
-    async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>>;
+    async fn get_active_ides(&self) -> anyhow::Result<HashSet<Ide>>;
 
     /// Get the status of workspace of the provided IDE
     async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace>;

@@ -68,6 +68,8 @@ impl PromptService for Live {
 
 #[cfg(test)]
 pub mod tests {
+    use std::collections::HashSet;
+
     use async_trait::async_trait;
     use forge_domain::{Ide, Workspace, WorkspaceId};
 
@@ -78,8 +80,8 @@ pub mod tests {
 
     #[async_trait]
     impl IdeRepository for MockIdeRepository {
-        async fn get_active_ides(&self) -> Result<Vec<Ide>> {
-            Ok(vec![])
+        async fn get_active_ides(&self) -> Result<HashSet<Ide>> {
+            Ok(Default::default())
         }
 
         async fn get_workspace(&self, _: &WorkspaceId) -> Result<Workspace> {
