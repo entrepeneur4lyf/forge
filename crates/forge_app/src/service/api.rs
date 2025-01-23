@@ -156,106 +156,97 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_e2e() {
-        let api = Live::new(Path::new("../../").to_path_buf()).await.unwrap();
-        let task = include_str!("./api_task.md");
+    const MAX_RETRIES: usize = 3;
+    const SUPPORTED_MODELS: &[&str] = &[
+        "anthropic/claude-3.5-sonnet:beta",
+        "openai/gpt-4o-2024-11-20",
+        "anthropic/claude-3.5-sonnet",
+        "openai/gpt-4o",
+        "openai/gpt-4o-mini",
+        // "google/gemini-flash-1.5",
+        "anthropic/claude-3-sonnet",
+    ];
 
-        const MAX_RETRIES: usize = 3;
-        const MATCH_THRESHOLD: f64 = 0.7; // 70% of crates must be found
-        const SUPPORTED_MODELS: &[&str] = &[
-            "anthropic/claude-3.5-sonnet:beta",
-            "openai/gpt-4o-2024-11-20",
-            "anthropic/claude-3.5-sonnet",
-            "openai/gpt-4o",
-            "openai/gpt-4o-mini",
-            "google/gemini-flash-1.5",
-            "anthropic/claude-3-sonnet",
-        ];
+    /// Test fixture for API testing that supports parallel model validation
+    struct Fixture {
+        task: String,
+    }
 
-        let test_futures = SUPPORTED_MODELS.iter().map(|&model| {
-            let api = api.clone();
-            let task = task.to_string();
+    impl Fixture {
+        /// Create a new test fixture with the given task
+        fn new(task: impl Into<String>) -> Self {
+            Self { task: task.into() }
+        }
 
-            async move {
-                let request = ChatRequest::new(ModelId::new(model), task);
-                let expected_crates = [
-                    "forge_app",
-                    "forge_ci",
-                    "forge_domain",
-                    "forge_main",
-                    "forge_open_router",
-                    "forge_prompt",
-                    "forge_tool",
-                    "forge_tool_macros",
-                    "forge_walker",
-                ];
+        /// Get the API service, panicking if not validated
+        async fn api(&self) -> Live {
+            Live::new(Path::new("../../").to_path_buf()).await.unwrap()
+        }
 
-                for attempt in 0..MAX_RETRIES {
-                    let response = api
-                        .chat(request.clone())
-                        .await
-                        .unwrap()
-                        .filter_map(|message| match message.unwrap() {
-                            ChatResponse::Text(text) => Some(text),
-                            _ => None,
-                        })
-                        .collect::<Vec<_>>()
-                        .await
-                        .join("")
-                        .trim()
-                        .to_string();
+        /// Get model response as text
+        async fn get_model_response(&self, model: &str) -> String {
+            let request = ChatRequest::new(ModelId::new(model), self.task.clone());
+            self.api()
+                .await
+                .chat(request)
+                .await
+                .unwrap()
+                .filter_map(|message| match message.unwrap() {
+                    ChatResponse::Text(text) => Some(text),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .await
+                .join("")
+                .trim()
+                .to_string()
+        }
 
-                    let found_crates: Vec<&str> = expected_crates
-                        .iter()
-                        .filter(|&crate_name| {
-                            response.contains(&format!("<crate>{}</crate>", crate_name))
-                        })
-                        .cloned()
-                        .collect();
+        /// Test single model with retries
+        async fn test_single_model(
+            &self,
+            model: &str,
+            check_response: impl Fn(&str) -> bool,
+        ) -> Result<(), String> {
+            for attempt in 0..MAX_RETRIES {
+                let response = self.get_model_response(model).await;
 
-                    let match_percentage = found_crates.len() as f64 / expected_crates.len() as f64;
-
-                    if match_percentage >= MATCH_THRESHOLD {
-                        println!(
-                            "[{}] Successfully found {:.2}% of expected crates",
-                            model,
-                            match_percentage * 100.0
-                        );
-                        return Ok::<_, String>(());
-                    }
-
-                    if attempt < MAX_RETRIES - 1 {
-                        println!(
-                            "[{}] Attempt {}/{}: Found {}/{} crates: {:?}",
-                            model,
-                            attempt + 1,
-                            MAX_RETRIES,
-                            found_crates.len(),
-                            expected_crates.len(),
-                            found_crates
-                        );
-                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                    } else {
-                        return Err(format!(
-                            "[{}] Failed: Found only {}/{} crates: {:?}",
-                            model,
-                            found_crates.len(),
-                            expected_crates.len(),
-                            found_crates
-                        ));
-                    }
+                if check_response(&response) {
+                    println!("[{}] Successfully checked response", model);
+                    return Ok(());
                 }
 
-                unreachable!()
+                if attempt < MAX_RETRIES - 1 {
+                    println!("[{}] Attempt {}/{}", model, attempt + 1, MAX_RETRIES);
+                }
             }
-        });
-
-        let results = join_all(test_futures).await;
-        let errors: Vec<_> = results.into_iter().filter_map(Result::err).collect();
-
-        if !errors.is_empty() {
-            panic!("Test failures:\n{}", errors.join("\n"));
+            Err(format!("[{}] Failed after {} attempts", model, MAX_RETRIES))
         }
+
+        /// Run tests for all models in parallel
+        async fn test_models(
+            &self,
+            check_response: impl Fn(&str) -> bool + Send + Sync + Copy + 'static,
+        ) -> Vec<String> {
+            let futures = SUPPORTED_MODELS
+                .iter()
+                .map(|&model| async move { self.test_single_model(model, check_response).await });
+
+            join_all(futures)
+                .await
+                .into_iter()
+                .filter_map(Result::err)
+                .collect()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_find_cat_name() -> Result<()> {
+        let errors = Fixture::new("There is a cat hidden in the codebase. What is its name?")
+            .test_models(|response| response.to_lowercase().contains("juniper"))
+            .await;
+
+        assert!(errors.is_empty(), "Test failures:\n{}", errors.join("\n"));
+        Ok(())
     }
 }

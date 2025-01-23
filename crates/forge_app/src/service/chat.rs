@@ -67,12 +67,18 @@ impl Live {
             while let Some(chunk) = response.next().await {
                 let message = chunk?;
 
+                if tx.is_closed() {
+                    // If the receiver is closed, we should stop processing messages.
+                    drop(response);
+                    break;
+                }
+
                 if let Some(ref content) = message.content {
                     if !content.is_empty() {
                         assistant_message_content.push_str(content.as_str());
-                        tx.send(Ok(ChatResponse::Text(content.as_str().to_string())))
-                            .await
-                            .unwrap();
+                        let _ = tx
+                            .send(Ok(ChatResponse::Text(content.as_str().to_string())))
+                            .await;
                     }
                 }
 
@@ -81,18 +87,18 @@ impl Live {
                         // Send tool call detection on first part
                         if tool_call_parts.is_empty() {
                             if let Some(tool_name) = &tool_part.name {
-                                tx.send(Ok(ChatResponse::ToolCallDetected(tool_name.clone())))
-                                    .await
-                                    .unwrap();
+                                let _ = tx
+                                    .send(Ok(ChatResponse::ToolCallDetected(tool_name.clone())))
+                                    .await;
                             }
                         }
                         // Add to parts and send the part itself
                         tool_call_parts.push(tool_part.clone());
-                        tx.send(Ok(ChatResponse::ToolCallArgPart(
-                            tool_part.arguments_part.clone(),
-                        )))
-                        .await
-                        .unwrap();
+                        let _ = tx
+                            .send(Ok(ChatResponse::ToolCallArgPart(
+                                tool_part.arguments_part.clone(),
+                            )))
+                            .await;
                     }
                 }
 
@@ -101,30 +107,26 @@ impl Live {
                     let tool_call = ToolCallFull::try_from_parts(&tool_call_parts)?;
                     some_tool_call = Some(tool_call.clone());
 
-                    tx.send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
-                        .await
-                        .unwrap();
+                    let _ = tx
+                        .send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
+                        .await;
 
                     let tool_result = self.tool.call(tool_call).await;
 
                     some_tool_result = Some(tool_result.clone());
 
                     // send the tool use end message.
-                    tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
-                        .await
-                        .unwrap();
+                    let _ = tx.send(Ok(ChatResponse::ToolCallEnd(tool_result))).await;
                 }
 
                 if let Some(reason) = &message.finish_reason {
-                    tx.send(Ok(ChatResponse::FinishReason(reason.clone())))
-                        .await
-                        .unwrap();
+                    let _ = tx
+                        .send(Ok(ChatResponse::FinishReason(reason.clone())))
+                        .await;
                 }
 
                 if let Some(usage) = &message.usage {
-                    tx.send(Ok(ChatResponse::Usage(usage.clone())))
-                        .await
-                        .unwrap();
+                    let _ = tx.send(Ok(ChatResponse::Usage(usage.clone()))).await;
                 }
             }
 
@@ -133,15 +135,15 @@ impl Live {
                 some_tool_call,
             ));
 
-            tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
-                .await
-                .unwrap();
+            let _ = tx
+                .send(Ok(ChatResponse::ModifyContext(request.clone())))
+                .await;
 
             if let Some(tool_result) = some_tool_result {
                 request = request.add_message(ContextMessage::ToolMessage(tool_result));
-                tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
-                    .await
-                    .unwrap();
+                let _ = tx
+                    .send(Ok(ChatResponse::ModifyContext(request.clone())))
+                    .await;
             } else {
                 break Ok(());
             }
@@ -171,10 +173,12 @@ impl ChatService for Live {
             // TODO: simplify this match.
             match that.chat_workflow(request, tx.clone(), chat.clone()).await {
                 Ok(_) => {}
-                Err(e) => tx.send(Err(e)).await.unwrap(),
+                Err(e) => {
+                    let _ = tx.send(Err(e)).await;
+                }
             };
 
-            tx.send(Ok(ChatResponse::Complete)).await.unwrap();
+            let _ = tx.send(Ok(ChatResponse::Complete)).await;
 
             drop(tx);
         });
@@ -227,6 +231,7 @@ mod tests {
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
+    use tokio::time::Duration;
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, ChatService, Live};
@@ -280,7 +285,29 @@ mod tests {
         system_prompt: String,
     }
 
+    // This is a helper struct to hold the services required to run or validate
+    // tests
+    struct Service {
+        chat: Live,
+        provider: Arc<TestProvider>,
+    }
+
     impl Fixture {
+        pub fn services(&self) -> Service {
+            let provider =
+                Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
+            let system_prompt = Arc::new(TestPrompt::new(self.system_prompt.clone()));
+            let tool = Arc::new(TestToolService::new(self.tools.clone()));
+            let user_prompt = Arc::new(TestPrompt::default());
+            let chat = Live::new(
+                provider.clone(),
+                system_prompt.clone(),
+                tool.clone(),
+                user_prompt.clone(),
+            );
+            Service { chat, provider }
+        }
+
         pub async fn run(&self, request: ChatRequest) -> TestResult {
             let provider =
                 Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
@@ -596,5 +623,54 @@ mod tests {
                 )),
         ];
         assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_should_drop_task_when_stream_is_dropped() {
+        tokio::time::pause();
+        let model_id = ModelId::new("gpt-5");
+        let mock_llm_responses = vec![
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("Let's use foo tool")
+                    .add_tool_call(
+                        ToolCallPart::default()
+                            .name(ToolName::new("foo"))
+                            .arguments_part(r#"{"foo": 1,"#)
+                            .call_id(ToolCallId::new("too_call_001")),
+                    ),
+                ChatCompletionMessage::default()
+                    .content_part("")
+                    .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#)),
+                // IMPORTANT: the last message has an empty string in content
+                ChatCompletionMessage::default()
+                    .content_part("")
+                    .finish_reason(FinishReason::ToolCalls),
+            ],
+            vec![ChatCompletionMessage::default()
+                .content_part("Task is complete, let me know how can i help you!")],
+        ];
+        let total_messages = mock_llm_responses.len();
+        let request = ChatRequest::new(model_id.clone(), "Hello can you use foo tool?")
+            .conversation_id(
+                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+            );
+
+        let services = Fixture::default()
+            .assistant_responses(mock_llm_responses.clone())
+            .tools(vec![json!({"a": 100, "b": 200})])
+            .services();
+
+        let mut stream = services
+            .chat
+            .chat(request, Context::default())
+            .await
+            .unwrap();
+        if let Some(_) = stream.next().await {
+            drop(stream);
+        }
+        tokio::time::advance(Duration::from_secs(35)).await;
+        // we should consumed only one message from stream.
+        assert_eq!(services.provider.message(), total_messages - 1);
     }
 }
