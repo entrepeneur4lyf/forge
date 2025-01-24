@@ -11,15 +11,15 @@ use super::{PromptService, Service};
 
 impl Service {
     pub fn user_prompt_service(
-        file_read: Arc<dyn FileReadService>,
+        file: Arc<dyn FileReadService>,
         ide: Arc<dyn IdeRepository>,
     ) -> impl PromptService {
-        Live { file_read, ide }
+        Live { file, ide }
     }
 }
 
 struct Live {
-    file_read: Arc<dyn FileReadService>,
+    file: Arc<dyn FileReadService>,
     ide: Arc<dyn IdeRepository>,
 }
 
@@ -45,7 +45,7 @@ impl PromptService for Live {
 
         let mut file_contents = vec![];
         for file_path in parsed_task.files() {
-            let content = self.file_read.read(file_path.clone().into()).await?;
+            let content = self.file.read(file_path.clone().into()).await?;
             file_contents.push(FileRead { path: file_path, content });
         }
 
