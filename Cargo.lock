@@ -897,6 +897,7 @@ dependencies = [
  "forge_walker",
  "futures",
  "jsonpath_lib",
+ "pretty_assertions",
  "rusqlite",
  "serde",
  "serde_json",

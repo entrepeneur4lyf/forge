@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context};
 use forge_domain::{Workspace, WorkspaceId};
 use rusqlite::{Connection, OptionalExtension};
-use tokio::fs;
 
 use crate::parse;
 
@@ -49,8 +48,6 @@ impl Db {
             .with_context(|| format!("Failed to execute SQL query for key '{}'", key))?;
 
         if let Some(value) = value {
-            let timestamp = chrono::Utc::now().timestamp_millis();
-            std::fs::write(format!("extract_focused_file-{}.json", timestamp), &value)?;
             return Ok(PathBuf::from(parse::focused_file_path(&value)?));
         }
 
@@ -71,8 +68,6 @@ impl Db {
             .with_context(|| format!("Failed to execute SQL query for key '{}'", key))?;
 
         if let Some(value) = value {
-            let timestamp = chrono::Utc::now().timestamp_millis();
-            std::fs::write(format!("extract_active_files-{}.json", timestamp), &value)?;
             return parse::active_files_path(&value);
         }
 
