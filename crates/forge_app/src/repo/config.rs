@@ -1,8 +1,9 @@
+use anyhow::Context;
 use chrono::{NaiveDateTime, Utc};
 use diesel::dsl::max;
 use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp};
-use forge_domain::Config;
+use forge_domain::{Config, ConfigRepository};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::configuration_table::{self};
@@ -26,7 +27,7 @@ impl ConfigId {
 
 #[derive(Debug, Insertable, Queryable, QueryableByName)]
 #[diesel(table_name = configuration_table)]
-struct RawConfig {
+struct ConfigEntity {
     #[diesel(sql_type = Text)]
     id: String,
     #[diesel(sql_type = Text)]
@@ -35,19 +36,13 @@ struct RawConfig {
     created_at: NaiveDateTime,
 }
 
-impl TryFrom<RawConfig> for Config {
-    type Error = forge_domain::Error;
+impl TryFrom<ConfigEntity> for Config {
+    type Error = anyhow::Error;
 
-    fn try_from(raw: RawConfig) -> Result<Self, Self::Error> {
+    fn try_from(raw: ConfigEntity) -> Result<Self, Self::Error> {
         // TODO: currently we don't need id and created_at.
-        Ok(serde_json::from_str(&raw.data)?)
+        serde_json::from_str(&raw.data).with_context(|| "failed to load configuration from store")
     }
-}
-
-#[async_trait::async_trait]
-pub trait ConfigRepository: Send + Sync {
-    async fn get(&self) -> anyhow::Result<Config>;
-    async fn set(&self, config: Config) -> anyhow::Result<Config>;
 }
 
 pub struct Live<P> {
@@ -63,8 +58,14 @@ impl<P: Sqlite> Live<P> {
 #[async_trait::async_trait]
 impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
     async fn get(&self) -> anyhow::Result<Config> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+        let pool = self
+            .pool_service
+            .pool()
+            .await
+            .context("Failed to get database pool")?;
+        let mut conn = pool
+            .get()
+            .context("Failed to get database connection from pool")?;
 
         // get the max timestamp.
         let max_ts: Option<NaiveDateTime> = configuration_table::table
@@ -72,7 +73,7 @@ impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
             .first(&mut conn)?;
 
         // use the max timestamp to get the latest config.
-        let result: RawConfig = configuration_table::table
+        let result: ConfigEntity = configuration_table::table
             .filter(configuration_table::created_at.eq_any(max_ts))
             .limit(1)
             .first(&mut conn)?;
@@ -86,7 +87,7 @@ impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
         let mut conn = pool.get()?;
         let now = Utc::now().naive_utc();
 
-        let raw = RawConfig {
+        let raw = ConfigEntity {
             id: ConfigId::generate().to_string(),
             data: serde_json::to_string(&data)?,
             created_at: now,
@@ -94,7 +95,8 @@ impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
 
         diesel::insert_into(configuration_table::table)
             .values(&raw)
-            .execute(&mut conn)?;
+            .execute(&mut conn)
+            .with_context(|| format!("Failed to save configuration with id: {}", raw.id))?;
 
         self.get().await
     }
@@ -113,9 +115,9 @@ pub mod tests {
     use super::*;
     use crate::sqlite::tests::TestSqlite;
 
-    pub struct TestStorage;
+    pub struct TestConfigStorage;
 
-    impl TestStorage {
+    impl TestConfigStorage {
         pub fn in_memory() -> anyhow::Result<impl ConfigRepository> {
             let pool_service = TestSqlite::new()?;
             Ok(Live::new(pool_service))
@@ -123,7 +125,7 @@ pub mod tests {
     }
 
     async fn setup_storage() -> anyhow::Result<impl ConfigRepository> {
-        TestStorage::in_memory()
+        TestConfigStorage::in_memory()
     }
 
     fn test_config() -> Config {
