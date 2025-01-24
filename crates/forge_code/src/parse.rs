@@ -56,12 +56,14 @@ pub fn active_files_path(json_data: &str) -> Result<HashSet<PathBuf>> {
     for v in value.iter() {
         for v in jsonpath_lib::Selector::new()
             .str_path("$.resourceJSON.fsPath")
-        .with_context(|| "Invalid JSONPath expression for file path")?
+            .with_context(|| "Invalid JSONPath expression for file path")?
             .value(v)
             .select()
-        .with_context(|| "Failed to extract file paths from editor state")?
+            .with_context(|| "Failed to extract file paths from editor state")?
         {
-            let val = v.as_str().ok_or_else(|| anyhow!("File path in workspace data is not a valid string"))?;
+            let val = v
+                .as_str()
+                .ok_or_else(|| anyhow!("File path in workspace data is not a valid string"))?;
             ans.insert(PathBuf::from(val));
         }
     }

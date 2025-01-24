@@ -18,7 +18,7 @@ impl Db {
             .join("state.vscdb")
             .to_string_lossy()
             .to_string();
-        
+
         let conn = Connection::open(&db_path)
             .with_context(|| format!("Failed to open VS Code database at '{}'", db_path))?;
 
@@ -51,7 +51,9 @@ impl Db {
             return Ok(PathBuf::from(parse::focused_file_path(&value)?));
         }
 
-        Err(anyhow!("No active editor found - unable to determine focused file"))
+        Err(anyhow!(
+            "No active editor found - unable to determine focused file"
+        ))
     }
 
     fn extract_active_files(&self) -> anyhow::Result<HashSet<PathBuf>> {

@@ -96,7 +96,12 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
 
     let hash_file = get_hash(Walker::new(path_buf.clone()), &search_dir, path_buf)
         .await
-        .with_context(|| format!("Failed to locate workspace hash directory for: {}", search_dir))?;
+        .with_context(|| {
+            format!(
+                "Failed to locate workspace hash directory for: {}",
+                search_dir
+            )
+        })?;
 
     Ok(hash_file.path)
 }

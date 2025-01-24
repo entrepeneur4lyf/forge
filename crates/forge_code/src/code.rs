@@ -46,10 +46,15 @@ impl IdeRepository for Code {
             for ide in instances {
                 // Clone workspace_id for use in error messages
                 let workspace_id = ide.workspace_id.clone();
-                let db = Db::new(ide.workspace_id)
-                    .with_context(|| format!("Failed to create database for workspace: {:?}", workspace_id))?;
-                if let Ok(workspace) = db.get_workspace().await
-                    .with_context(|| format!("Failed to get workspace data for: {:?}", workspace_id)) {
+                let db = Db::new(ide.workspace_id).with_context(|| {
+                    format!(
+                        "Failed to create database for workspace: {:?}",
+                        workspace_id
+                    )
+                })?;
+                if let Ok(workspace) = db.get_workspace().await.with_context(|| {
+                    format!("Failed to get workspace data for: {:?}", workspace_id)
+                }) {
                     if !got_first {
                         combined_workspace.workspace_id = workspace.workspace_id;
                         combined_workspace.focused_file = workspace.focused_file;
