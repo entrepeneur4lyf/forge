@@ -11,3 +11,9 @@ Hello World - Foo
 <file_content path="bar.txt">
 Hello World - Bar
 </file_content>
+
+<workspace>
+<focused_file>test.txt</focused_file>
+<opened_file>other.txt</opened_file>
+<opened_file>test.txt</opened_file>
+</workspace>
