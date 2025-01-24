@@ -12,15 +12,15 @@ use super::{PromptService, Service};
 impl Service {
     pub fn user_prompt_service(
         file_read: Arc<dyn FileReadService>,
-        all_ides: Arc<dyn IdeRepository>,
+        ide: Arc<dyn IdeRepository>,
     ) -> impl PromptService {
-        Live { file_read, all_ides }
+        Live { file_read, ide }
     }
 }
 
 struct Live {
     file_read: Arc<dyn FileReadService>,
-    all_ides: Arc<dyn IdeRepository>,
+    ide: Arc<dyn IdeRepository>,
 }
 
 #[derive(Serialize)]
@@ -49,7 +49,7 @@ impl PromptService for Live {
             file_contents.push(FileRead { path: file_path, content });
         }
 
-        let files_info = IdeFilesInfo::from_ides(self.all_ides.as_ref()).await?;
+        let files_info = IdeFilesInfo::from_ides(self.ide.as_ref()).await?;
 
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);

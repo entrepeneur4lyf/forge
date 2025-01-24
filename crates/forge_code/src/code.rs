@@ -9,7 +9,7 @@ use crate::process::Process;
 
 /// Represents Visual Studio Code IDE interaction
 pub struct Code {
-    root_dir: String,
+    cwd: String,
 }
 
 impl Code {
@@ -25,14 +25,14 @@ impl Code {
             .and_then(|p| p.to_str().map(|s| s.to_string()))
             .unwrap_or(cwd);
 
-        Self { root_dir: cwd }
+        Self { cwd }
     }
 }
 
 #[async_trait]
 impl IdeRepository for Code {
     async fn get_active_ides(&self) -> anyhow::Result<HashSet<Ide>> {
-        Process::new(&self.root_dir).instances().await
+        Process::new(&self.cwd).instances().await
     }
 
     async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
