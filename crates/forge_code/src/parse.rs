@@ -39,7 +39,7 @@ pub fn active_files_path(json_data: &str) -> Result<HashSet<PathBuf>> {
     let parsed: Value = serde_json::from_str(json_data)
         .with_context(|| "Failed to parse VS Code workspace JSON data")?;
     let mut seen_paths = HashSet::new();
-    
+
     // First get any regular editor paths
     let regular_editor_values = jsonpath_lib::Selector::new()
         .str_path("$..editors[?(@.id=='workbench.editors.files.fileEditorInput')].value")
@@ -96,8 +96,9 @@ pub fn active_files_path(json_data: &str) -> Result<HashSet<PathBuf>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     fn relative_path(path: &str) -> String {
         // Convert absolute paths in fixtures to relative paths for testing
@@ -248,7 +249,7 @@ mod tests {
         // Focus on sample_focussed_file.json
         let json_data = include_str!("fixtures/extract_focused_file-3.json");
         let actual = get_focused_file(json_data);
-        
+
         let expected = "crates/forge_code/src/fixtures/sample_focussed_file.json";
         assert_eq!(
             actual, expected,
@@ -261,7 +262,7 @@ mod tests {
         // Same as test 3, focus on sample_focussed_file.json
         let json_data = include_str!("fixtures/extract_focused_file-4.json");
         let actual = get_focused_file(json_data);
-        
+
         let expected = "crates/forge_code/src/fixtures/sample_focussed_file.json";
         assert_eq!(
             actual, expected,
