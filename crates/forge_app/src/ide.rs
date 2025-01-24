@@ -61,10 +61,6 @@ impl IdeRepository for Live {
             }
         }
 
-        if !got_first {
-            anyhow::bail!("No active IDEs found");
-        }
-
         Ok(combined_workspace)
     }
 }
