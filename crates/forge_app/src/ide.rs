@@ -52,7 +52,9 @@ impl IdeRepository for Live {
                             combined_workspace.focused_file = workspace.focused_file;
                             got_first = true;
                         }
-                        combined_workspace.opened_files.extend(workspace.opened_files);
+                        combined_workspace
+                            .opened_files
+                            .extend(workspace.opened_files);
                     }
                     Err(_) => continue,
                 }
