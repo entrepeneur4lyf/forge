@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use forge_domain::{Workspace, WorkspaceId};
 use rusqlite::{Connection, OptionalExtension};
 
@@ -14,12 +14,13 @@ pub struct Db {
 
 impl Db {
     pub fn new(workspace_id: WorkspaceId) -> anyhow::Result<Self> {
-        let conn = Connection::open(
-            PathBuf::from(workspace_id.as_str())
-                .join("state.vscdb")
-                .to_string_lossy()
-                .to_string(),
-        )?;
+        let db_path = PathBuf::from(workspace_id.as_str())
+            .join("state.vscdb")
+            .to_string_lossy()
+            .to_string();
+        
+        let conn = Connection::open(&db_path)
+            .with_context(|| format!("Failed to open VS Code database at '{}'", db_path))?;
 
         Ok(Self { conn, workspace_id })
     }
@@ -39,31 +40,35 @@ impl Db {
         let key = "workbench.explorer.treeViewState";
         let mut stmt = self
             .conn
-            .prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
+            .prepare("SELECT value FROM ItemTable WHERE key = ?1")
+            .with_context(|| format!("Failed to prepare SQL query for key '{}'", key))?;
         let value: Option<String> = stmt
             .query_row(rusqlite::params![key], |row| row.get(0))
-            .optional()?;
+            .optional()
+            .with_context(|| format!("Failed to execute SQL query for key '{}'", key))?;
 
         if let Some(value) = value {
             return Ok(PathBuf::from(parse::focused_file_path(&value)?));
         }
 
-        Err(anyhow!("Focused file not found"))
+        Err(anyhow!("No active editor found - unable to determine focused file"))
     }
 
     fn extract_active_files(&self) -> anyhow::Result<HashSet<PathBuf>> {
         let key = "memento/workbench.parts.editor";
         let mut stmt = self
             .conn
-            .prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
+            .prepare("SELECT value FROM ItemTable WHERE key = ?1")
+            .with_context(|| format!("Failed to prepare SQL query for key '{}'", key))?;
         let value: Option<String> = stmt
             .query_row(rusqlite::params![key], |row| row.get(0))
-            .optional()?;
+            .optional()
+            .with_context(|| format!("Failed to execute SQL query for key '{}'", key))?;
 
         if let Some(value) = value {
             return parse::active_files_path(&value);
         }
 
-        Err(anyhow!("Focused file not found"))
+        Err(anyhow!("No active editor files found in workspace"))
     }
 }

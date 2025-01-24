@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail};
+use anyhow::{anyhow, bail, Context};
 use forge_domain::Ide;
 use forge_walker::Walker;
 use serde_json::Value;
@@ -20,7 +20,7 @@ impl<'a> Process<'a> {
         let mut system = System::new_all();
         system.refresh_all();
 
-        for (i, v) in system
+        let processes = system
             .processes()
             .values()
             .filter(|process| {
@@ -34,15 +34,16 @@ impl<'a> Process<'a> {
                     .iter()
                     .any(|arg| arg.to_string_lossy().contains("vscode-window-config"))
             })
-            .enumerate()
-        {
-            let cmd = v
+            .enumerate();
+
+        for (i, process) in processes {
+            let cmd = process
                 .cmd()
                 .iter()
                 .map(|v| v.to_string_lossy().to_string())
                 .collect::<Vec<_>>();
 
-            let working_directory = v
+            let working_directory = process
                 .cwd()
                 .unwrap_or(Path::new(""))
                 .to_string_lossy()
@@ -93,7 +94,9 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
         return Err(anyhow!("Project not active in VS code"));
     };
 
-    let hash_file = get_hash(Walker::new(path_buf.clone()), &search_dir, path_buf).await?;
+    let hash_file = get_hash(Walker::new(path_buf.clone()), &search_dir, path_buf)
+        .await
+        .with_context(|| format!("Failed to locate workspace hash directory for: {}", search_dir))?;
 
     Ok(hash_file.path)
 }
@@ -197,7 +200,9 @@ async fn process_workflow_file(path: &Path, cwd: &str) -> bool {
     let path = path.join("workspace.json");
 
     if let Ok(content) = tokio::fs::read_to_string(&path).await {
-        let workflow_json: Value = serde_json::from_str(&content).unwrap_or_default();
+        let workflow_json: Value = serde_json::from_str(&content)
+            .with_context(|| format!("Failed to parse workspace JSON file: {}", path.display()))
+            .unwrap_or_default();
 
         if let Some(folder) = workflow_json.get("folder").and_then(|v| v.as_str()) {
             // Remove "file://" prefix

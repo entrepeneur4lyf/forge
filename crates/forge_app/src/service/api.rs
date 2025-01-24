@@ -49,7 +49,7 @@ impl Live {
         let env = Service::environment_service(cwd).get().await?;
 
         let cwd: String = env.cwd.clone();
-        let ide = Arc::new(Service::ide_service(cwd.clone()));
+        let ide = Arc::new(Service::ide_service(cwd.clone())?);
 
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
         let tool = Arc::new(Service::tool_service());

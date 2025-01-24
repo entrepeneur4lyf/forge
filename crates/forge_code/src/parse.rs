@@ -1,17 +1,18 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use serde_json::Value;
 
 pub fn focused_file_path(json_data: &str) -> Result<String> {
     // Parse the input JSON into a `serde_json::Value`
-    let data: Value = serde_json::from_str(json_data)?;
+    let data: Value = serde_json::from_str(json_data)
+        .with_context(|| "Failed to parse focused file JSON data")?;
 
     // Extract the "focus" array, if it exists
     let focus_array = match data.get("focus") {
         Some(Value::Array(arr)) => arr,
-        _ => return Err(anyhow!("Invalid focus json")), // "focus" key not found or not an array
+        _ => return Err(anyhow!("Invalid JSON format - focus array not found")),
     };
 
     // Get the first item from "focus", ensuring it's a string
@@ -35,11 +36,14 @@ pub fn focused_file_path(json_data: &str) -> Result<String> {
 }
 
 pub fn active_files_path(json_data: &str) -> Result<HashSet<PathBuf>> {
-    let parsed: Value = serde_json::from_str(json_data).expect("Invalid JSON");
+    let parsed: Value = serde_json::from_str(json_data)
+        .with_context(|| "Failed to parse VS Code workspace JSON data")?;
     let values = jsonpath_lib::Selector::new()
-        .str_path("$['editorpart.state'].serializedGrid.root.data[*].data.editors[*].value")?
+        .str_path("$['editorpart.state'].serializedGrid.root.data[*].data.editors[*].value")
+        .with_context(|| "Invalid JSONPath expression for editor state")?
         .value(&parsed)
-        .select()?
+        .select()
+        .with_context(|| "Failed to extract editor state from workspace JSON")?
         .into_iter()
         .filter_map(|v| v.as_str());
 
@@ -51,11 +55,13 @@ pub fn active_files_path(json_data: &str) -> Result<HashSet<PathBuf>> {
 
     for v in value.iter() {
         for v in jsonpath_lib::Selector::new()
-            .str_path("$.resourceJSON.fsPath")?
+            .str_path("$.resourceJSON.fsPath")
+        .with_context(|| "Invalid JSONPath expression for file path")?
             .value(v)
-            .select()?
+            .select()
+        .with_context(|| "Failed to extract file paths from editor state")?
         {
-            let val = v.as_str().ok_or(anyhow!("Invalid JSON"))?;
+            let val = v.as_str().ok_or_else(|| anyhow!("File path in workspace data is not a valid string"))?;
             ans.insert(PathBuf::from(val));
         }
     }

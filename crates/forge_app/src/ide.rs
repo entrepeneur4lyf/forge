@@ -14,14 +14,14 @@ enum IdeType {
 }
 
 impl Live {
-    fn new<T: ToString>(cwd: T) -> Self {
-        let ides: Vec<IdeType> = vec![IdeType::VsCode(Code::new(cwd.to_string()))];
-        Self { ides }
+    fn new<T: ToString>(cwd: T) -> anyhow::Result<Self> {
+        let ides: Vec<IdeType> = vec![IdeType::VsCode(Code::new(cwd.to_string())?)];
+        Ok(Self { ides })
     }
 }
 
 impl Service {
-    pub fn ide_service<T: ToString>(cwd: T) -> impl IdeRepository {
+    pub fn ide_service<T: ToString>(cwd: T) -> anyhow::Result<impl IdeRepository> {
         Live::new(cwd)
     }
 }
