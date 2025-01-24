@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
+use forge_domain::{Ide, IdeRepository, Workspace};
 
 use crate::db::Db;
 use crate::process::Process;
@@ -35,7 +35,28 @@ impl IdeRepository for Code {
         Process::new(&self.cwd).instances().await
     }
 
-    async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
-        Db::new(ide.clone())?.get_workspace().await
+    async fn get_workspace(&self) -> anyhow::Result<Workspace> {
+        let mut combined_workspace = Workspace::default();
+        let mut got_first = false;
+
+        // Get all active IDE instances
+        if let Ok(instances) = self.get_active_ides().await {
+            for ide in instances {
+                if let Ok(workspace) = Db::new(ide.workspace_id)?.get_workspace().await {
+                    if !got_first {
+                        combined_workspace.workspace_id = workspace.workspace_id;
+                        combined_workspace.focused_file = workspace.focused_file;
+                        got_first = true;
+                    }
+                    combined_workspace.opened_files.extend(workspace.opened_files);
+                }
+            }
+        }
+
+        if !got_first {
+            anyhow::bail!("No active VS Code instances found");
+        }
+
+        Ok(combined_workspace)
     }
 }

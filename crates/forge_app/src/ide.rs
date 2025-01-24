@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use forge_code::Code;
-use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
+use forge_domain::{Ide, IdeRepository, Workspace};
 
 use crate::Service;
 
@@ -39,13 +39,41 @@ impl IdeRepository for Live {
         Ok(files)
     }
 
-    async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
-        for i in &self.ides {
-            if let Ok(workspace) = i.get_workspace(ide).await {
-                return Ok(workspace);
+    async fn get_workspace(&self) -> anyhow::Result<Workspace> {
+        let mut combined_workspace = Workspace::default();
+        let mut got_first = false;
+
+        if let Ok(active_ides) = self.get_active_ides().await {
+            for _ide in active_ides {
+                match self.get_ide_workspace().await {
+                    Ok(workspace) => {
+                        if !got_first {
+                            combined_workspace.workspace_id = workspace.workspace_id;
+                            combined_workspace.focused_file = workspace.focused_file;
+                            got_first = true;
+                        }
+                        combined_workspace.opened_files.extend(workspace.opened_files);
+                    }
+                    Err(_) => continue,
+                }
             }
         }
 
+        if !got_first {
+            anyhow::bail!("No active IDEs found");
+        }
+
+        Ok(combined_workspace)
+    }
+}
+
+impl Live {
+    async fn get_ide_workspace(&self) -> anyhow::Result<Workspace> {
+        for ide in &self.ides {
+            if let Ok(workspace) = ide.get_workspace().await {
+                return Ok(workspace);
+            }
+        }
         anyhow::bail!("IDE not found")
     }
 }
@@ -58,9 +86,9 @@ impl IdeRepository for IdeType {
         }
     }
 
-    async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
+    async fn get_workspace(&self) -> anyhow::Result<Workspace> {
         match self {
-            IdeType::VsCode(code) => code.get_workspace(ide).await,
+            IdeType::VsCode(code) => code.get_workspace().await,
         }
     }
 }

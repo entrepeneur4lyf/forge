@@ -6,14 +6,9 @@
 </file_content>
 {{/each}}
 
-{{#each focused_files}}
-<focused_file>
-{{this}}
-</focused_file>
+<workspace id="{{workspace.workspace_id}}">
+<focused_file>{{workspace.focused_file}}</focused_file>
+{{#each workspace.opened_files}}
+<opened_file>{{this}}</opened_file>
 {{/each}}
-
-{{#each opened_files}}
-<opened_files>
-{{this}}
-</opened_files>
-{{/each}}
+</workspace>

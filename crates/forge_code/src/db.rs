@@ -25,13 +25,17 @@ impl Db {
     }
 
     pub async fn get_workspace(self) -> anyhow::Result<Workspace> {
-        let mut ans = Workspace::default();
+        let focused_file = self.extract_focused_file()?.to_string_lossy().to_string();
+        let opened_files = self.extract_active_files()?
+            .into_iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect();
 
-        ans = ans.focused_file(self.extract_focused_file()?);
-        ans = ans.opened_files(self.extract_active_files()?);
-        ans = ans.workspace_id(self.workspace_id);
-
-        Ok(ans)
+        Ok(Workspace {
+            workspace_id: self.workspace_id,
+            focused_file,
+            opened_files,
+        })
     }
 
     fn extract_focused_file(&self) -> anyhow::Result<PathBuf> {

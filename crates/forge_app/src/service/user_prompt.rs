@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::{ChatRequest, IdeFilesInfo, IdeRepository};
+use forge_domain::{ChatRequest, IdeRepository, Workspace};
 use forge_prompt::Prompt;
 use handlebars::Handlebars;
 use serde::Serialize;
@@ -27,8 +27,7 @@ struct Live {
 struct Context {
     task: String,
     files: Vec<FileRead>,
-    focused_files: Vec<String>,
-    opened_files: Vec<String>,
+    workspace: Workspace,
 }
 
 #[derive(Serialize)]
@@ -49,7 +48,7 @@ impl PromptService for Live {
             file_contents.push(FileRead { path: file_path, content });
         }
 
-        let files_info = IdeFilesInfo::from_ides(self.ide.as_ref()).await?;
+        let workspace = self.ide.get_workspace().await?;
 
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
@@ -58,8 +57,7 @@ impl PromptService for Live {
         let ctx = Context {
             task: request.content.to_string(),
             files: file_contents,
-            focused_files: files_info.focused_files,
-            opened_files: files_info.opened_files,
+            workspace,
         };
 
         Ok(hb.render_template(template, &ctx)?)
@@ -84,8 +82,14 @@ pub mod tests {
             Ok(Default::default())
         }
 
-        async fn get_workspace(&self, _: &WorkspaceId) -> Result<Workspace> {
-            Ok(Workspace::default())
+        async fn get_workspace(&self) -> Result<Workspace> {
+            let mut workspace = Workspace::default();
+            workspace.workspace_id = WorkspaceId::from("test-workspace-1".to_string());
+            workspace.focused_file = "test.txt".to_string();
+            workspace
+                .opened_files
+                .extend(["test.txt".to_string(), "other.txt".to_string()]);
+            Ok(workspace)
         }
     }
 
