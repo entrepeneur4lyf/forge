@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use forge_domain::{ChatCompletionMessage, Context as ChatContext, HostType, Model, ModelId, Parameters, ProviderService, ResultStream};
 use forge_open_router::OpenRouter;
 use moka2::future::Cache;
@@ -42,14 +42,16 @@ impl ProviderService for Live {
         self.provider.models().await
     }
 
-    async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
-        match self
+    async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters> {
+        Ok(self
             .cache
-            .try_get_with_by_ref(model, self.provider.parameters(model))
+            .try_get_with_by_ref(model, async {
+                self.provider
+                    .parameters(model)
+                    .await
+                    .with_context(|| format!("Failed to get parameters for model: {}", model))
+            })
             .await
-        {
-            Ok(parameters) => Ok(parameters),
-            Err(e) => anyhow::bail!("Failed to get parameters from cache: {}", e),
-        }
+            .map_err(|e| anyhow::anyhow!(e))?)
     }
 }
