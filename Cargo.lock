@@ -953,6 +953,7 @@ dependencies = [
  "forge_domain",
  "futures",
  "reqwest",
+ "reqwest-eventsource",
  "serde",
  "serde_json",
  "thiserror 2.0.11",

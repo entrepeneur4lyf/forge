@@ -177,7 +177,7 @@ impl ProviderService for Ollama {
             .await
             .map_err(|e| anyhow::anyhow!(e.to_string()))?;
 
-        // We can not use EventSource directly
+        // We can not use high level EventSource directly
         // as it appends application/x-ndjson to the content type
         // which Ollama doesn't support.
         let stream = response
