@@ -18,13 +18,26 @@ pub struct Environment {
     /// A list of files in the current working directory.
     pub files: Vec<String>,
     /// The Forge API key.
-    pub api_key: String,
+    pub api_key: Option<String>,
     /// The large model ID.
     pub large_model_id: String,
     /// The small model ID.
     pub small_model_id: String,
     /// Config dir for Forge.
     pub db_path: String,
+    /// The host type.
+    /// For example, it could be Ollama or OpenRouter.
+    pub host_type: HostType,
+}
+
+#[derive(Default, Serialize, Debug, Clone, strum_macros::EnumString)]
+#[serde(rename_all = "camelCase")]
+pub enum HostType {
+    #[default]
+    #[strum(ascii_case_insensitive)]
+    Ollama,
+    #[strum(ascii_case_insensitive)]
+    OpenRouter,
 }
 
 /// Repository for accessing system environment information

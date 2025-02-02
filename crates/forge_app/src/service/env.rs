@@ -1,7 +1,8 @@
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use anyhow::Result;
-use forge_domain::Environment;
+use forge_domain::{Environment, HostType};
 use forge_walker::Walker;
 use tokio::sync::Mutex;
 
@@ -30,7 +31,7 @@ impl Live {
 
     async fn from_env(cwd: Option<PathBuf>) -> Result<Environment> {
         dotenv::dotenv().ok();
-        let api_key = std::env::var("FORGE_KEY").expect("FORGE_KEY must be set");
+        let api_key = std::env::var("FORGE_KEY").ok();
         let large_model_id =
             std::env::var("FORGE_LARGE_MODEL").unwrap_or("anthropic/claude-3.5-sonnet".to_owned());
         let small_model_id =
@@ -51,6 +52,11 @@ impl Live {
             Err(_) => vec![],
         };
 
+        let host_type = std::env::var("FORGE_HOST_TYPE")
+            .ok()
+            .and_then(|v| HostType::from_str(v.as_str()).ok())
+            .unwrap_or(if api_key.is_none() { HostType::default() } else { HostType::OpenRouter });
+
         Ok(Environment {
             os: std::env::consts::OS.to_string(),
             cwd: cwd.display().to_string(),
@@ -65,6 +71,7 @@ impl Live {
             large_model_id,
             small_model_id,
             db_path: db_path().await?,
+            host_type,
         })
     }
 }

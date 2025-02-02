@@ -12,5 +12,7 @@ pub trait ProviderService: Send + Sync + 'static {
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
     async fn models(&self) -> Result<Vec<Model>>;
+
+    // TODO: Drop it from here.
     async fn parameters(&self, model: &ModelId) -> Result<Parameters>;
 }

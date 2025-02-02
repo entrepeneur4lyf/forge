@@ -48,7 +48,7 @@ impl Live {
     async fn new(cwd: Option<PathBuf>) -> Result<Self> {
         let env = Service::environment_service(cwd).get().await?;
 
-        let provider = Arc::new(Service::provider_service(env.api_key.clone()));
+        let provider = Arc::new(Service::provider_service(env.api_key.clone(), env.host_type.clone()));
         let tool = Arc::new(Service::tool_service());
         let file_read = Arc::new(Service::file_read_service());
 

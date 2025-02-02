@@ -1,16 +1,14 @@
 use anyhow::Result;
-use forge_domain::{
-    ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService,
-    ResultStream,
-};
+use forge_domain::{ChatCompletionMessage, Context as ChatContext, HostType, Model, ModelId, Parameters, ProviderService, ResultStream};
 use forge_open_router::OpenRouter;
 use moka2::future::Cache;
+use forge_ollama::Ollama;
 
 use super::Service;
 
 impl Service {
-    pub fn provider_service(api_key: impl ToString) -> impl ProviderService {
-        Live::new(api_key)
+    pub fn provider_service(api_key: Option<impl ToString>, host_type: HostType) -> impl ProviderService {
+        Live::new(api_key, host_type)
     }
 }
 
@@ -20,9 +18,13 @@ struct Live {
 }
 
 impl Live {
-    fn new(api_key: impl ToString) -> Self {
-        let provider = OpenRouter::new(api_key);
-        Self { provider: Box::new(provider), cache: Cache::new(1024) }
+    fn new(api_key: Option<impl ToString>, host_type: HostType) -> Self {
+        let provider: Box<dyn ProviderService> = match host_type {
+            HostType::Ollama => Box::new(Ollama::new()),
+            HostType::OpenRouter => Box::new(OpenRouter::new(api_key.expect("API key is required").to_string())),
+        };
+
+        Self { provider, cache: Cache::new(1024) }
     }
 }
 

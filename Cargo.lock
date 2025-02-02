@@ -841,6 +841,7 @@ dependencies = [
  "dirs",
  "dotenv",
  "forge_domain",
+ "forge_ollama",
  "forge_open_router",
  "forge_tool",
  "forge_walker",
