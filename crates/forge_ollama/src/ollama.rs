@@ -148,12 +148,11 @@ impl ProviderService for Ollama {
             .map(|msg| match msg {
                 ContextMessage::ContentMessage(content_msg) => ChatMessage {
                     role: content_msg.role.to_string(),
-                    content: content_msg.content.to_string(),
+                    content: content_msg.content,
                 },
-                ContextMessage::ToolMessage(tool_msg) => ChatMessage {
-                    role: "tool".to_string(),
-                    content: serde_json::to_string(&tool_msg.content).unwrap(),
-                },
+                ContextMessage::ToolMessage(tool_msg) => {
+                    ChatMessage { role: "tool".to_string(), content: tool_msg.content }
+                }
             })
             .collect();
 
