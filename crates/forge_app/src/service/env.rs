@@ -1,16 +1,13 @@
 use std::path::PathBuf;
-use std::str::FromStr;
+use std::sync::Mutex;
 
 use anyhow::Result;
-use forge_domain::{Environment, HostType};
-use forge_walker::Walker;
-use tokio::sync::Mutex;
+use forge_domain::Environment;
 
 use super::Service;
 
-#[async_trait::async_trait]
 pub trait EnvironmentService {
-    async fn get(&self) -> Result<Environment>;
+    fn get(&self) -> Result<Environment>;
 }
 
 impl Service {
@@ -29,7 +26,7 @@ impl Live {
         Self { env: Mutex::new(None), base_dir }
     }
 
-    async fn from_env(cwd: Option<PathBuf>) -> Result<Environment> {
+    fn from_env(cwd: Option<PathBuf>) -> Result<Environment> {
         dotenv::dotenv().ok();
         let api_key = std::env::var("FORGE_KEY").ok();
         let large_model_id =
@@ -43,56 +40,44 @@ impl Live {
             std::env::current_dir()?
         };
 
-        let files = match Walker::min_all().cwd(cwd.clone()).max_depth(3).get().await {
-            Ok(files) => files
-                .into_iter()
-                .filter(|f| !f.is_dir())
-                .map(|f| f.path)
-                .collect(),
-            Err(_) => vec![],
-        };
-
         let host_type = std::env::var("FORGE_HOST_TYPE")
             .ok()
             .and_then(|v| HostType::from_str(v.as_str()).ok())
             .unwrap_or(if api_key.is_none() { HostType::default() } else { HostType::OpenRouter });
 
+
         Ok(Environment {
             os: std::env::consts::OS.to_string(),
-            cwd: cwd.display().to_string(),
+            cwd,
             shell: if cfg!(windows) {
                 std::env::var("COMSPEC")?
             } else {
                 std::env::var("SHELL").unwrap_or("/bin/sh".to_string())
             },
-            home: dirs::home_dir().map(|a| a.display().to_string()),
-            files,
             api_key,
             large_model_id,
             small_model_id,
-            db_path: db_path().await?,
+            base_path: base_path(),
+            home: dirs::home_dir(),
             host_type,
         })
     }
 }
 
-async fn db_path() -> Result<String> {
-    let db_path = dirs::home_dir()
-        .ok_or(anyhow::anyhow!("Unable to get home dir."))?
-        .join(".forge");
-    tokio::fs::create_dir_all(&db_path).await?;
-    Ok(db_path.display().to_string())
+fn base_path() -> PathBuf {
+    dirs::config_dir()
+        .map(|a| a.join("forge"))
+        .unwrap_or(PathBuf::from(".").join(".forge"))
 }
 
-#[async_trait::async_trait]
 impl EnvironmentService for Live {
-    async fn get(&self) -> Result<Environment> {
-        let mut guard = self.env.lock().await;
+    fn get(&self) -> Result<Environment> {
+        let mut guard = self.env.lock().unwrap();
 
         if let Some(env) = guard.as_ref() {
-            return Ok(env.clone());
+            Ok(env.clone())
         } else {
-            *guard = Some(Live::from_env(self.base_dir.clone()).await?);
+            *guard = Some(Live::from_env(self.base_dir.clone())?);
             Ok(guard.as_ref().unwrap().clone())
         }
     }
