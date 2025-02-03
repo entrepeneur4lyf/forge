@@ -21,7 +21,10 @@ impl Live {
     fn new(api_key: Option<impl ToString>, host_type: HostType) -> Self {
         let provider: Box<dyn ProviderService> = match host_type {
             HostType::Ollama => Box::new(Ollama::new()),
-            HostType::OpenRouter => Box::new(OpenRouter::new(api_key.expect("API key is required").to_string())),
+            HostType::OpenRouter => Box::new(OpenRouter::builder()
+                .api_key(api_key.expect("API key is required").to_string())
+                .build()
+                .unwrap()),
         };
 
         Self { provider, cache: Cache::new(1024) }
