@@ -2,8 +2,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::Result;
-use forge_domain::Environment;
-
+use forge_domain::{Environment, HostType};
 use super::Service;
 
 pub trait EnvironmentService {
@@ -28,7 +27,7 @@ impl Live {
 
     fn from_env(cwd: Option<PathBuf>) -> Result<Environment> {
         dotenv::dotenv().ok();
-        let api_key = std::env::var("FORGE_KEY").ok();
+        let api_key = std::env::var("OPEN_ROUTER_KEY").ok();
         let large_model_id =
             std::env::var("FORGE_LARGE_MODEL").unwrap_or("anthropic/claude-3.5-sonnet".to_owned());
         let small_model_id =
@@ -40,10 +39,7 @@ impl Live {
             std::env::current_dir()?
         };
 
-        let host_type = std::env::var("FORGE_HOST_TYPE")
-            .ok()
-            .and_then(|v| HostType::from_str(v.as_str()).ok())
-            .unwrap_or(if api_key.is_none() { HostType::default() } else { HostType::OpenRouter });
+        let host_type = if api_key.is_none() { HostType::default() } else { HostType::OpenRouter };
 
 
         Ok(Environment {

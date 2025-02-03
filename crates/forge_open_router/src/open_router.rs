@@ -85,7 +85,7 @@ impl ProviderService for OpenRouter {
                             serde_json::from_str::<OpenRouterResponse>(&event.data)
                                 .with_context(|| "Failed to parse OpenRouter response")
                                 .and_then(|message| {
-                                    ChatCompletionMessage::try_from(message.clone())
+                                    ChatCompletionMessage::try_from(message)
                                         .with_context(|| "Failed to create completion message")
                                 }),
                         ),
@@ -97,7 +97,7 @@ impl ProviderService for OpenRouter {
                             .await
                             .with_context(|| "Failed to parse OpenRouter response")
                             .and_then(|message| {
-                                ChatCompletionMessage::try_from(message.clone())
+                                ChatCompletionMessage::try_from(message)
                                     .with_context(|| "Failed to create completion message")
                             })
                             .with_context(|| "Failed with invalid status code"),

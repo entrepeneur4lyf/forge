@@ -53,21 +53,6 @@ impl Environment {
     pub fn history_path(&self) -> PathBuf {
         self.base_path.clone()
     }
-    /// Config dir for Forge.
-    pub db_path: String,
-    /// The host type.
-    /// For example, it could be Ollama or OpenRouter.
-    pub host_type: HostType,
-}
-
-#[derive(Default, Serialize, Debug, Clone, strum_macros::EnumString)]
-#[serde(rename_all = "camelCase")]
-pub enum HostType {
-    #[default]
-    #[strum(ascii_case_insensitive)]
-    Ollama,
-    #[strum(ascii_case_insensitive)]
-    OpenRouter,
 }
 
 /// Repository for accessing system environment information
