@@ -153,7 +153,7 @@ jobs:
     - uses: xresloader/upload-to-github-release@v1
       with:
         release_id: ${{ needs.draft_release.outputs.create_release_id }}
-        file: forge-${{ matrix.target }}
+        file: ${{ matrix.binary_name }}
         overwrite: 'true'
   semantic_release:
     needs:

@@ -139,7 +139,7 @@ fn generate() {
                         "release_id",
                         "${{ needs.draft_release.outputs.create_release_id }}",
                     ))
-                    .add_with(("file", "forge-${{ matrix.target }}"))
+                    .add_with(("file", "${{ matrix.binary_name }}"))
                     .add_with(("overwrite", "true")),
             ),
     );
