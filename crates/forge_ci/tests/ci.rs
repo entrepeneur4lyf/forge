@@ -107,7 +107,7 @@ fn generate() {
             )
             // Build release binary
             .add_step(
-                Step::uses("ClementTsang", "cargo-action", "v0.0.3")
+                Step::uses("ClementTsang", "cargo-action", "v0.0.6")
                     .add_with(("command", "build --release"))
                     .add_with(("args", "--target ${{ matrix.target }}"))
                     .add_with(("use-cross", "true"))
