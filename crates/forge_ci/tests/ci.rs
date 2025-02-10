@@ -92,9 +92,6 @@ fn generate() {
     workflow = workflow.add_job(
         "build-release",
         Job::new("build-release")
-            .add_needs(build_job.clone())
-            .add_needs(draft_release_job.clone())
-            .cond(main_cond.clone())
             .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
             .runs_on("${{ matrix.os }}")
             .permissions(
@@ -113,6 +110,7 @@ fn generate() {
                 Step::uses("ClementTsang", "cargo-action", "v0.0.3")
                     .add_with(("command", "build --release"))
                     .add_with(("args", "--target ${{ matrix.target }}"))
+                    .add_with(("use-cross", "true"))
                     .add_env(("RUSTFLAGS", "-C target-feature=+crt-static"))
                     .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
                     .add_env((

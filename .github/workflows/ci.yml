@@ -92,10 +92,6 @@ jobs:
       create_release_name: ${{ steps.set_output.outputs.create_release_name }}
       create_release_id: ${{ steps.set_output.outputs.create_release_id }}
   build-release:
-    needs:
-    - build
-    - draft_release
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: build-release
     runs-on: ${{ matrix.os }}
     permissions:
@@ -137,6 +133,7 @@ jobs:
       with:
         command: build --release
         args: --target ${{ matrix.target }}
+        use-cross: 'true'
       env:
         RUSTFLAGS: -C target-feature=+crt-static
         POSTHOG_API_SECRET: ${{secrets.POSTHOG_API_SECRET}}
