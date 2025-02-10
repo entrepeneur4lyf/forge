@@ -23,37 +23,43 @@ fn generate() {
                 "os": "ubuntu-latest",
                 "target": "x86_64-unknown-linux-gnu",
                 "binary_name": "forge-x86_64-unknown-linux-gnu",
-                "binary_path": "target/x86_64-unknown-linux-gnu/release/forge"
+                "binary_path": "target/x86_64-unknown-linux-gnu/release/forge",
+                "cross": "false"
             },
             {
                 "os": "ubuntu-latest",
                 "target": "aarch64-unknown-linux-gnu",
                 "binary_name": "forge-aarch64-unknown-linux-gnu",
-                "binary_path": "target/aarch64-unknown-linux-gnu/release/forge"
+                "binary_path": "target/aarch64-unknown-linux-gnu/release/forge",
+                "cross": "true"
             },
             {
                 "os": "macos-latest",
                 "target": "x86_64-apple-darwin",
                 "binary_name": "forge-x86_64-apple-darwin",
-                "binary_path": "target/x86_64-apple-darwin/release/forge"
+                "binary_path": "target/x86_64-apple-darwin/release/forge",
+                "cross": "false"
             },
             {
                 "os": "macos-latest",
                 "target": "aarch64-apple-darwin",
                 "binary_name": "forge-aarch64-apple-darwin",
-                "binary_path": "target/aarch64-apple-darwin/release/forge"
+                "binary_path": "target/aarch64-apple-darwin/release/forge",
+                "cross": "false"
             },
             {
                 "os": "windows-latest",
                 "target": "x86_64-pc-windows-msvc",
                 "binary_name": "forge-x86_64-pc-windows-msvc.exe",
-                "binary_path": "target/x86_64-pc-windows-msvc/release/forge.exe"
+                "binary_path": "target/x86_64-pc-windows-msvc/release/forge.exe",
+                "cross": "false"
             },
             {
                 "os": "windows-latest",
                 "target": "aarch64-pc-windows-msvc",
                 "binary_name": "forge-aarch64-pc-windows-msvc.exe",
-                "binary_path": "target/aarch64-pc-windows-msvc/release/forge.exe"
+                "binary_path": "target/aarch64-pc-windows-msvc/release/forge.exe",
+                "cross": "true"
             }
         ]
     });
@@ -92,12 +98,8 @@ fn generate() {
     workflow = workflow.add_job(
         "build-release",
         Job::new("build-release")
-            .strategy(Strategy {
-                fail_fast: Some(false),
-                max_parallel: None,
-                matrix: Some(matrix),
-            })
-            .runs_on("ubuntu-latest")
+            .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
+            .runs_on("${{ matrix.os }}")
             .permissions(
                 Permissions::default()
                     .contents(Level::Write)
@@ -114,7 +116,7 @@ fn generate() {
                 Step::uses("ClementTsang", "cargo-action", "v0.0.6")
                     .add_with(("command", "build --release"))
                     .add_with(("args", "--target ${{ matrix.target }}"))
-                    .add_with(("use-cross", "true"))
+                    .add_with(("use-cross", "${{ matrix.cross }}"))
                     .add_with(("cross-version", "0.2.4"))
                     .add_env(("RUSTFLAGS", "-C target-feature=+crt-static"))
                     .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
