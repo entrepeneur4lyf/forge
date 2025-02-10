@@ -130,7 +130,7 @@ fn generate() {
             )
             // Rename binary to target name
             .add_step(Step::run(
-                "cp ${{ matrix.binary_path }} forge-${{ matrix.target }}",
+                "cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}",
             ))
             // Upload directly to release
             .add_step(
