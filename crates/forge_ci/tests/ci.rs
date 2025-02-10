@@ -53,13 +53,6 @@ fn generate() {
                 "binary_name": "forge-x86_64-pc-windows-msvc.exe",
                 "binary_path": "target/x86_64-pc-windows-msvc/release/forge.exe",
                 "cross": "false"
-            },
-            {
-                "os": "windows-latest",
-                "target": "aarch64-pc-windows-msvc",
-                "binary_name": "forge-aarch64-pc-windows-msvc.exe",
-                "binary_path": "target/aarch64-pc-windows-msvc/release/forge.exe",
-                "cross": "true"
             }
         ]
     });

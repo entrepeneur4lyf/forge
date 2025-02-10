@@ -125,11 +125,6 @@ jobs:
           cross: 'false'
           os: windows-latest
           target: x86_64-pc-windows-msvc
-        - binary_name: forge-aarch64-pc-windows-msvc.exe
-          binary_path: target/aarch64-pc-windows-msvc/release/forge.exe
-          cross: 'true'
-          os: windows-latest
-          target: aarch64-pc-windows-msvc
     steps:
     - uses: actions/checkout@v4
     - uses: taiki-e/setup-cross-toolchain-action@v1
