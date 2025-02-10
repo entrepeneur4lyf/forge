@@ -134,6 +134,7 @@ jobs:
         command: build --release
         args: --target ${{ matrix.target }}
         use-cross: 'true'
+        cross-version: 0.2.4
       env:
         RUSTFLAGS: -C target-feature=+crt-static
         POSTHOG_API_SECRET: ${{secrets.POSTHOG_API_SECRET}}
