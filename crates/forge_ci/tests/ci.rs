@@ -92,8 +92,8 @@ fn generate() {
     workflow = workflow.add_job(
         "build-release",
         Job::new("build-release")
-            .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
-            .runs_on("${{ matrix.os }}")
+            .strategy(Strategy { fail_fast: Some(false), max_parallel: None, matrix: Some(matrix) })
+            .runs_on("ubuntu-latest")
             .permissions(
                 Permissions::default()
                     .contents(Level::Write)

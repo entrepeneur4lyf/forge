@@ -93,7 +93,7 @@ jobs:
       create_release_id: ${{ steps.set_output.outputs.create_release_id }}
   build-release:
     name: build-release
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
@@ -124,6 +124,7 @@ jobs:
           binary_path: target/aarch64-pc-windows-msvc/release/forge.exe
           os: windows-latest
           target: aarch64-pc-windows-msvc
+      fail-fast: false
     steps:
     - uses: actions/checkout@v4
     - uses: taiki-e/setup-cross-toolchain-action@v1
