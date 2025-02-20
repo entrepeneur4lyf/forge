@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -29,7 +29,7 @@ impl NamedTool for FSRemove {
 impl ExecutableTool for FSRemove {
     type Input = FSRemoveInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -48,7 +48,7 @@ impl ExecutableTool for FSRemove {
             .await
             .map_err(|e| format!("Failed to remove file {}: {}", input.path, e))?;
 
-        Ok(format!("Successfully removed file: {}", input.path))
+        Ok(ExecutableToolResultType::Text(format!("Successfully removed file: {}", input.path)))
     }
 }
 
@@ -73,7 +73,8 @@ mod test {
         let result = fs_remove
             .call(FSRemoveInput { path: file_path.to_string_lossy().to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("Successfully removed file"));
         assert!(!file_path.exists());

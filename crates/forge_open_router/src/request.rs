@@ -45,7 +45,15 @@ pub struct OpenRouterMessage {
 #[serde(untagged)]
 pub enum MessageContent {
     Text(String),
+    Image(Vec<ImageContent>),
     Parts(Vec<ContentPart>),
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum ImageContent {
+    Image(ImageContentPart),
+    Text(TextContent),
 }
 
 impl MessageContent {
@@ -273,13 +281,30 @@ impl From<ContextMessage> for OpenRouterMessage {
                         .collect()
                 }),
             },
-            ContextMessage::ToolMessage(tool_result) => OpenRouterMessage {
-                role: OpenRouterRole::Tool,
-                content: Some(MessageContent::Text(tool_result.to_string())),
-                name: Some(tool_result.name),
-                tool_call_id: tool_result.call_id,
-                tool_calls: None,
-            },
+            ContextMessage::ToolMessage(tool_result) => {
+                let content = if let Some(content_ty) = tool_result.content_type {
+                    MessageContent::Image(vec![
+                        ImageContent::Image(ImageContentPart {
+                            r#type: "image_url".to_string(),
+                            image_url: ImageUrl {
+                                // url: format!("data:image/{content_ty};base64{}", tool_result.content),
+                                url: "http://170.187.201.170:3000/b4eb896192f0d07f.jpg".to_string(),
+                                detail: None,
+                            },
+                        })
+                    ])
+                } else {
+                    MessageContent::Text(tool_result.to_string())
+                };
+
+                OpenRouterMessage {
+                    role: OpenRouterRole::User,
+                    content: Some(content),
+                    name: Some(tool_result.name),
+                    tool_call_id: tool_result.call_id,
+                    tool_calls: Some(vec![]),
+                }
+            }
         }
     }
 }
@@ -306,7 +331,8 @@ pub enum OpenRouterRole {
 #[cfg(test)]
 mod tests {
     use forge_domain::{
-        ContentMessage, ContextMessage, Role, ToolCallFull, ToolCallId, ToolName, ToolResult,
+        ContentMessage, ContextMessage, ExecutableToolResultType, Role, ToolCallFull, ToolCallId,
+        ToolName, ToolResult,
     };
     use insta::assert_json_snapshot;
     use serde_json::json;
@@ -366,13 +392,14 @@ mod tests {
     fn test_tool_message_conversion() {
         let tool_result = ToolResult::new(ToolName::new("test_tool"))
             .call_id(ToolCallId::new("123"))
-            .success(
+            .success(ExecutableToolResultType::Text(
                 r#"{
                "user": "John",
                "age": 30,
                "address": [{"city": "New York"}, {"city": "San Francisco"}]
-            }"#,
-            );
+            }"#
+                .to_string(),
+            ));
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
         let router_message = OpenRouterMessage::from(tool_message);
@@ -383,7 +410,7 @@ mod tests {
     fn test_tool_message_with_special_chars() {
         let tool_result = ToolResult::new(ToolName::new("html_tool"))
             .call_id(ToolCallId::new("456"))
-            .success(
+            .success(ExecutableToolResultType::Text(
                 r#"{
                 "html": "<div class=\"container\"><p>Hello <World></p></div>",
                 "elements": ["<span>", "<br/>", "<hr>"],
@@ -391,8 +418,9 @@ mod tests {
                     "style": "color: blue; font-size: 12px;",
                     "data-test": "<test>&value</test>"
                 }
-            }"#,
-            );
+            }"#
+                .to_string(),
+            ));
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
         let router_message = OpenRouterMessage::from(tool_message);
@@ -403,7 +431,9 @@ mod tests {
     fn test_tool_message_typescript_code() {
         let tool_result = ToolResult::new(ToolName::new("rust_tool"))
             .call_id(ToolCallId::new("456"))
-            .success(r#"{ "code": "fn main<T>(gt: T) {let b = &gt; }"}"#);
+            .success(ExecutableToolResultType::Text(
+                r#"{ "code": "fn main<T>(gt: T) {let b = &gt; }"}"#.to_string(),
+            ));
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
         let router_message = OpenRouterMessage::from(tool_message);

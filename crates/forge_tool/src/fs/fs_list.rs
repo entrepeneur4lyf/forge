@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;
@@ -39,7 +39,7 @@ impl NamedTool for FSList {
 impl ExecutableTool for FSList {
     type Input = FSListInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
@@ -81,11 +81,11 @@ impl ExecutableTool for FSList {
             }
         }
 
-        Ok(format!(
+        Ok(ExecutableToolResultType::Text(format!(
             "<file_list path=\"{}\">\n{}\n</file_list>",
             input.path,
             paths.join("\n")
-        ))
+        )))
     }
 }
 
@@ -114,7 +114,8 @@ mod test {
                 recursive: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_snapshot!(TempDir::normalize(&result));
     }
@@ -139,7 +140,8 @@ mod test {
                 recursive: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_snapshot!(TempDir::normalize(&result));
     }
@@ -181,7 +183,8 @@ mod test {
                 recursive: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("regular.txt"));
         assert!(!result.contains(".hidden"));
@@ -216,7 +219,8 @@ mod test {
                 recursive: Some(true),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_snapshot!(TempDir::normalize(&result));
     }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use inquire::Confirm;
 use schemars::JsonSchema;
@@ -40,11 +40,11 @@ impl NamedTool for Approve {
 impl ExecutableTool for Approve {
     type Input = ApproveInput;
 
-    async fn call(&self, input: ApproveInput) -> Result<String, String> {
+    async fn call(&self, input: ApproveInput) -> Result<ExecutableToolResultType, String> {
         let ans = Confirm::new(&input.message)
             .with_default(true)
             .prompt()
             .map_err(|e| e.to_string())?;
-        Ok(ans.to_string())
+        Ok(ExecutableToolResultType::Text(ans.to_string()))
     }
 }

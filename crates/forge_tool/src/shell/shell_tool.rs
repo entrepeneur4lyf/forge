@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Environment, ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -81,7 +81,7 @@ impl NamedTool for Shell {
 impl ExecutableTool for Shell {
     type Input = ShellInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         // Validate empty command
         if input.command.trim().is_empty() {
             return Err("Command string is empty or contains only whitespace".to_string());
@@ -123,6 +123,7 @@ impl ExecutableTool for Shell {
                 .await
                 .map_err(|e| e.to_string())?,
         )
+            .map(ExecutableToolResultType::Text)
     }
 }
 
@@ -173,7 +174,8 @@ mod tests {
                 cwd: env::current_dir().unwrap(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
         assert!(result.contains("<stdout>Hello, World!\n</stdout>"));
     }
 
@@ -191,7 +193,8 @@ mod tests {
                 cwd: env::current_dir().unwrap(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_eq!(
             result,
@@ -208,7 +211,8 @@ mod tests {
                 cwd: env::current_dir().unwrap(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_eq!(
             result,
@@ -231,7 +235,8 @@ mod tests {
                 cwd: temp_dir.clone(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
         assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
     }
 
@@ -292,7 +297,8 @@ mod tests {
                 cwd: current_dir.clone(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_eq!(
             result,
@@ -309,7 +315,8 @@ mod tests {
                 cwd: env::current_dir().unwrap(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
         assert_eq!(result, format!("<stdout>first\nsecond\n</stdout>"));
     }
 
@@ -322,7 +329,8 @@ mod tests {
                 cwd: env::current_dir().unwrap(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("executed successfully"));
         assert!(!result.contains("failed"));
@@ -337,7 +345,8 @@ mod tests {
                 cwd: env::current_dir().unwrap(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("executed successfully"));
         assert!(!result.contains("failed"));
@@ -352,7 +361,8 @@ mod tests {
                 cwd: env::current_dir().unwrap(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(!result.is_empty());
         assert!(!result.contains("Error:"));

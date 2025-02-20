@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use anyhow::Context;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -128,7 +128,7 @@ impl NamedTool for Outline {
 impl ExecutableTool for Outline {
     type Input = OutlineInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -202,9 +202,9 @@ impl ExecutableTool for Outline {
         }
 
         if result.is_empty() {
-            Ok("No source code definitions found.".into())
+            Ok(ExecutableToolResultType::Text("No source code definitions found.".into()))
         } else {
-            Ok(result)
+            Ok(ExecutableToolResultType::Text(result))
         }
     }
 }
@@ -237,7 +237,8 @@ mod test {
         let result = outline
             .call(OutlineInput { path: temp_dir.path().to_string_lossy().to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_eq!(result, "No source code definitions found.");
     }

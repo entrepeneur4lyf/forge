@@ -1,6 +1,8 @@
 use std::path::Path;
-
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use std::str::FromStr;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use forge_domain::{ExecutableTool, ExecutableToolResultType, ImageContentType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -17,7 +19,9 @@ pub struct FSReadInput {
 /// you need to examine the contents of an existing file you do not know the
 /// contents of, for example to analyze code, review text files, or extract
 /// information from configuration files. Automatically extracts raw text from
-/// PDF and DOCX files. May not be suitable for other types of binary files, as
+/// PDF and DOCX files.
+/// Sends you the link to an image.
+/// It may not be suitable for other types of binary files, as
 /// it returns the raw content as a string.
 #[derive(ToolDescription)]
 pub struct FSRead;
@@ -32,13 +36,27 @@ impl NamedTool for FSRead {
 impl ExecutableTool for FSRead {
     type Input = FSReadInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        tokio::fs::read_to_string(path)
-            .await
-            .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e))
+        let image_ty = path.to_string_lossy().to_lowercase().split('.').last().and_then(|v|  ImageContentType::from_str(v).ok());
+        
+        if let Some(image_ty) = image_ty {
+            let content = tokio::fs::read(path)
+                .await
+                .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e))?;
+
+            Ok(ExecutableToolResultType::Image {
+                content: STANDARD.encode(content),
+                type_: image_ty,
+            })
+        } else {
+            tokio::fs::read_to_string(path)
+                .await
+                .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e))
+                .map(ExecutableToolResultType::Text)
+        }
     }
 }
 
@@ -62,7 +80,8 @@ mod test {
         let result = fs_read
             .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_eq!(result, test_content);
     }
@@ -90,7 +109,8 @@ mod test {
         let result = fs_read
             .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_eq!(result, "");
     }

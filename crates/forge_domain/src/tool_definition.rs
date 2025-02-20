@@ -5,7 +5,7 @@ use schemars::schema::RootSchema;
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-
+use strum_macros::{Display, EnumString};
 use crate::{NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
 
 ///
@@ -121,9 +121,34 @@ pub trait ToolDescription {
     fn description(&self) -> String;
 }
 
+#[derive(Debug, Clone)]
+pub enum ExecutableToolResultType {
+    Text(String),
+    Image { content: String, type_: ImageContentType},
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, EnumString, Display)]
+/// All supported image types by OpenRouter (https://openrouter.ai/docs/api-reference/overview)
+pub enum ImageContentType {
+    #[strum(serialize = "png")]
+    Png,
+    #[strum(serialize = "jpeg", serialize = "jpg")]
+    Jpeg,
+    #[strum(serialize = "gif", serialize = "webp")]
+    Webp,
+}
+impl ExecutableToolResultType {
+    pub fn into_string(self) -> String {
+        match self {
+            ExecutableToolResultType::Text(x) => x,
+            ExecutableToolResultType::Image { content, .. } => content,
+        }
+    }
+}
+
 #[async_trait::async_trait]
 pub trait ExecutableTool {
     type Input: DeserializeOwned;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String>;
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String>;
 }

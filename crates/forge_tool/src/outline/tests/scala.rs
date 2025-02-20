@@ -48,7 +48,8 @@ class UserServiceImpl extends UserRepository {
     let result = outline
         .call(OutlineInput { path: temp_dir.path().to_string_lossy().to_string() })
         .await
-        .unwrap();
+        .unwrap()
+        .into_string();
 
     assert_snapshot!("outline_scala", result);
 }

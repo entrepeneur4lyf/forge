@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dissimilar::Chunk;
 use forge_display::DiffFormat;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use thiserror::Error;
@@ -143,7 +143,7 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 impl ExecutableTool for ApplyPatch {
     type Input = ApplyPatchInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -196,7 +196,7 @@ impl ExecutableTool for ApplyPatch {
         let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
 
-        Ok(result)
+        Ok(ExecutableToolResultType::Text(result))
     }
 }
 
@@ -261,7 +261,8 @@ mod test {
                 .to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
 
@@ -284,7 +285,8 @@ mod test {
                 diff: format!("{SEARCH}\n{DIVIDER}\nNew content\n{REPLACE}\n").to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
 
@@ -307,7 +309,8 @@ mod test {
         let result = fs_replace
             .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
 
@@ -329,7 +332,8 @@ mod test {
         let result = fs_replace
             .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
 
@@ -356,7 +360,8 @@ mod test {
                 diff: format!("{SEARCH}\n    let x = 1;\n\n\n    console.log(x);\n{DIVIDER}\n    let y = 2;\n\n\n    console.log(y);\n{REPLACE}\n").to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
@@ -372,7 +377,8 @@ mod test {
                 .to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
@@ -388,7 +394,8 @@ mod test {
                 .to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content3 = fs::read_to_string(&file_path).await.unwrap();
@@ -419,7 +426,8 @@ mod test {
                 diff: format!("{SEARCH}\n  for (const itm of items) {{\n    total += itm.price;\n{DIVIDER}\n  for (const item of items) {{\n    total += item.price * item.quantity;\n{REPLACE}\n").to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
@@ -432,7 +440,8 @@ mod test {
                 diff: format!("{SEARCH}\nfunction calculateTotal(items) {{\n  let total = 0;\n{DIVIDER}\nfunction computeTotal(items, tax = 0) {{\n  let total = 0.0;\n{REPLACE}\n").to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
@@ -463,7 +472,8 @@ mod test {
                 diff: format!("{SEARCH}\n  async getUserById(userId) {{\n    const user = await db.findOne({{ id: userId }});\n{DIVIDER}\n  async findUser(id, options = {{}}) {{\n    const user = await this.db.findOne({{ userId: id, ...options }});\n{REPLACE}\n").to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
@@ -476,7 +486,8 @@ mod test {
                 diff: format!("{SEARCH}\n    if (!user) throw new Error('User not found');\n    return user;\n{DIVIDER}\n    if (!user) {{\n      throw new UserNotFoundError(id);\n    }}\n    return this.sanitizeUser(user);\n{REPLACE}\n").to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
@@ -501,7 +512,8 @@ mod test {
                 .to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();
@@ -523,7 +535,8 @@ mod test {
                 diff: format!("{SEARCH}\nfn main() {{ let x = 42; }}\n{DIVIDER}\nfn main() {{ let x = 42; let y = x * 2; }}\n{REPLACE}\n").to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();

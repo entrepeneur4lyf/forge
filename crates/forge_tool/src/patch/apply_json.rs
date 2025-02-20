@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use dissimilar::Chunk;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -216,13 +216,14 @@ async fn process_file_modifications(
 impl ExecutableTool for ApplyPatchJson {
     type Input = ApplyPatchJsonInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
         process_file_modifications(path, input.replacements)
             .await
             .map_err(|e| e.to_string())
+            .map(ExecutableToolResultType::Text)
     }
 }
 

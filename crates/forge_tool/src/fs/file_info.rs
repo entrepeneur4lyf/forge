@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -32,7 +32,7 @@ impl NamedTool for FSFileInfo {
 impl ExecutableTool for FSFileInfo {
     type Input = FSFileInfoInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -40,7 +40,7 @@ impl ExecutableTool for FSFileInfo {
             .await
             .with_context(|| format!("Failed to get metadata for '{}'", input.path))
             .map_err(|e| e.to_string())?;
-        Ok(format!("{:?}", meta))
+        Ok(ExecutableToolResultType::Text(format!("{:?}", meta)))
     }
 }
 
@@ -61,7 +61,8 @@ mod test {
         let result = fs_info
             .call(FSFileInfoInput { path: file_path.to_string_lossy().to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("FileType"));
         assert!(result.contains("permissions"));
@@ -78,7 +79,8 @@ mod test {
         let result = fs_info
             .call(FSFileInfoInput { path: dir_path.to_string_lossy().to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("FileType"));
         assert!(result.contains("permissions"));

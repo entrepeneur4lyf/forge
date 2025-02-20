@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use forge_display::DiffFormat;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -36,7 +36,7 @@ impl NamedTool for FSWrite {
 impl ExecutableTool for FSWrite {
     type Input = FSWriteInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -84,7 +84,7 @@ impl ExecutableTool for FSWrite {
         let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
 
-        Ok(result)
+        Ok(ExecutableToolResultType::Text(result))
     }
 }
 
@@ -115,7 +115,8 @@ mod test {
                 content: content.to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(output.contains("Successfully wrote"));
         assert!(output.contains(&file_path.display().to_string()));
@@ -139,7 +140,7 @@ mod test {
             })
             .await;
 
-        let output = result.unwrap();
+        let output = result.unwrap().into_string();
         assert!(output.contains("Warning:"));
     }
 
@@ -157,7 +158,7 @@ mod test {
             })
             .await;
 
-        let output = result.unwrap();
+        let output = result.unwrap().into_string();
         assert!(output.contains("Successfully wrote"));
         assert!(output.contains(&file_path.display().to_string()));
         assert!(output.contains(&content.len().to_string()));
@@ -180,7 +181,8 @@ mod test {
                 content: content.to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("Successfully wrote"));
         // Verify both directory and file were created
@@ -210,7 +212,8 @@ mod test {
                 content: content.to_string(),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("Successfully wrote"));
 
@@ -239,7 +242,8 @@ mod test {
         let result = fs_write
             .call(FSWriteInput { path: path_str, content: content.to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.contains("Successfully wrote"));
 

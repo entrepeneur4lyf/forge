@@ -1,4 +1,4 @@
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -27,8 +27,8 @@ impl NamedTool for AskFollowUpQuestion {
 impl ExecutableTool for AskFollowUpQuestion {
     type Input = AskFollowUpQuestionInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
-        Ok(format!("Question: {}", input.question))
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
+        Ok(ExecutableToolResultType::Text(format!("Question: {}", input.question)))
     }
 }
 
@@ -44,7 +44,8 @@ mod test {
         let result = ask
             .call(AskFollowUpQuestionInput { question: "What is your favorite color?".to_string() })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert_eq!(result, "Question: What is your favorite color?");
     }

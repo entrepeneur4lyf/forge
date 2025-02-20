@@ -3,7 +3,7 @@ use std::fmt::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use crate::{ToolCallFull, ToolCallId, ToolName};
+use crate::{ExecutableToolResultType, ImageContentType, ToolCallFull, ToolCallId, ToolName};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(strip_option, into)]
@@ -14,6 +14,7 @@ pub struct ToolResult {
     pub content: String,
     #[setters(skip)]
     pub is_error: bool,
+    pub content_type: Option<ImageContentType>,
 }
 
 #[derive(Default, Serialize, Setters)]
@@ -34,11 +35,20 @@ impl ToolResult {
             call_id: None,
             content: String::default(),
             is_error: false,
+            content_type: None,
         }
     }
 
-    pub fn success(mut self, content: impl Into<String>) -> Self {
-        self.content = content.into();
+    pub fn success(mut self, content: impl Into<ExecutableToolResultType>) -> Self {
+        match content.into() {
+            ExecutableToolResultType::Text(text) => {
+                self.content = text;
+            }
+            ExecutableToolResultType::Image { content, type_ } => {
+                self.content = content;
+                self.content_type = Some(type_);
+            }
+        }
         self.is_error = false;
         self
     }
@@ -57,6 +67,7 @@ impl From<ToolCallFull> for ToolResult {
             call_id: value.call_id,
             content: String::default(),
             is_error: false,
+            content_type: None,
         }
     }
 }
@@ -105,13 +116,15 @@ mod tests {
     #[test]
     fn test_snapshot_with_special_chars() {
         let result = ToolResult::new(ToolName::new("xml_tool")).success(
-            json!({
+            ExecutableToolResultType::Text(
+                json!({
                 "text": "Special chars: < > & ' \"",
                 "nested": {
                     "html": "<div>Test</div>"
                 }
             })
-            .to_string(),
+                    .to_string()
+            ),
         );
         assert_snapshot!(result);
     }
@@ -127,12 +140,14 @@ mod tests {
         let result = ToolResult::new(ToolName::new("complex_tool"))
             .call_id(ToolCallId::new("123"))
             .success(
-                json!({
+                ExecutableToolResultType::Text(
+                    json!({
                     "user": "John Doe",
                     "age": 42,
                     "address": [{"city": "New York"}, {"city": "Los Angeles"}]
                 })
-                .to_string(),
+                        .to_string()
+                ),
             );
         assert_snapshot!(result.to_string());
     }
@@ -140,20 +155,22 @@ mod tests {
     #[test]
     fn test_display_special_chars() {
         let result = ToolResult::new(ToolName::new("xml_tool")).success(
-            json!({
+            ExecutableToolResultType::Text(
+                json!({
                 "text": "Special chars: < > & ' \"",
                 "nested": {
                     "html": "<div>Test</div>"
                 }
             })
-            .to_string(),
+                    .to_string()
+            ),
         );
         assert_snapshot!(result.to_string());
     }
 
     #[test]
     fn test_success_and_failure_content() {
-        let success = ToolResult::new(ToolName::new("test_tool")).success("success message");
+        let success = ToolResult::new(ToolName::new("test_tool")).success(ExecutableToolResultType::Text("success message".to_string()));
         assert!(!success.is_error);
         assert_eq!(success.content, "success message");
 

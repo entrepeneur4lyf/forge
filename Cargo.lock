@@ -1091,6 +1091,7 @@ dependencies = [
  "Inflector",
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "console",
  "dissimilar",
  "forge_display",

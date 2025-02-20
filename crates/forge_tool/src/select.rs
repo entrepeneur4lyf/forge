@@ -1,5 +1,5 @@
 use anyhow::Result;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use inquire::Select as InquireSelect;
 use schemars::JsonSchema;
@@ -44,10 +44,10 @@ impl NamedTool for SelectTool {
 impl ExecutableTool for SelectTool {
     type Input = SelectInput;
 
-    async fn call(&self, input: SelectInput) -> Result<String, String> {
+    async fn call(&self, input: SelectInput) -> Result<ExecutableToolResultType, String> {
         let ans = InquireSelect::new(&input.message, input.options)
             .prompt()
             .map_err(|e| e.to_string())?;
-        Ok(ans)
+        Ok(ExecutableToolResultType::Text(ans))
     }
 }

@@ -37,7 +37,8 @@ async fn test_outline_multiple_files() {
     let result = outline
         .call(OutlineInput { path: temp_dir.path().to_string_lossy().to_string() })
         .await
-        .unwrap();
+        .unwrap()
+        .into_string();
 
     let seperator = "\n|----\n";
     let mut result = result.split(seperator).collect::<Vec<_>>();
@@ -55,7 +56,8 @@ async fn test_outline_empty_directory() {
     let result = outline
         .call(OutlineInput { path: temp_dir.path().to_string_lossy().to_string() })
         .await
-        .unwrap();
+        .unwrap()
+        .into_string();
 
     assert_snapshot!("outline_empty_directory", result);
 }
@@ -71,7 +73,8 @@ async fn test_outline_unsupported_files() {
     let result = outline
         .call(OutlineInput { path: temp_dir.path().to_string_lossy().to_string() })
         .await
-        .unwrap();
+        .unwrap()
+        .into_string();
 
     assert_snapshot!("outline_unsupported_files", result);
 }

@@ -88,7 +88,11 @@ impl ProviderService for OpenRouter {
             .model(model_id.clone())
             .stream(true);
 
+        println!("model_id: {}", model_id);
+
         request = pipeline().transform(request);
+
+        println!("{}", serde_json::to_string_pretty(&request).unwrap());
 
         let es = self
             .client
@@ -116,17 +120,20 @@ impl ProviderService for OpenRouter {
                         ),
                     },
                     Err(reqwest_eventsource::Error::StreamEnded) => None,
-                    Err(reqwest_eventsource::Error::InvalidStatusCode(_, response)) => Some(
-                        response
-                            .json::<OpenRouterResponse>()
-                            .await
-                            .with_context(|| "Failed to parse OpenRouter response")
-                            .and_then(|message| {
-                                ChatCompletionMessage::try_from(message.clone())
-                                    .with_context(|| "Failed to create completion message")
-                            })
-                            .with_context(|| "Failed with invalid status code"),
-                    ),
+                    Err(reqwest_eventsource::Error::InvalidStatusCode(code, response)) => {
+                        println!("Invalid status code: {}", code);
+                        Some(
+                            response
+                                .json::<OpenRouterResponse>()
+                                .await
+                                .with_context(|| "Failed to parse OpenRouter response")
+                                .and_then(|message| {
+                                    ChatCompletionMessage::try_from(message.clone())
+                                        .with_context(|| "Failed to create completion message")
+                                })
+                                .with_context(|| "Failed with invalid status code"),
+                        )
+                    },
                     Err(reqwest_eventsource::Error::InvalidContentType(_, response)) => Some(
                         response
                             .json::<OpenRouterResponse>()

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use forge_display::{GrepFormat, Kind, TitleFormat};
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, ExecutableToolResultType, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use regex::Regex;
@@ -53,7 +53,7 @@ impl NamedTool for FSSearch {
 impl ExecutableTool for FSSearch {
     type Input = FSSearchInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
@@ -136,7 +136,7 @@ impl ExecutableTool for FSSearch {
         let formatted_output = GrepFormat::new(matches.clone()).format(&regex);
         println!("{}", formatted_output);
 
-        Ok(matches.join("\n"))
+        Ok(ExecutableToolResultType::Text(matches.join("\n")))
     }
 }
 
@@ -170,7 +170,8 @@ mod test {
                 file_pattern: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 2);
@@ -197,7 +198,8 @@ mod test {
                 file_pattern: Some("*.rs".to_string()),
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 1);
@@ -221,7 +223,8 @@ mod test {
                 file_pattern: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 1);
@@ -253,7 +256,8 @@ mod test {
                 file_pattern: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 3);
@@ -281,7 +285,8 @@ mod test {
                 file_pattern: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 2);
@@ -305,7 +310,8 @@ mod test {
                 file_pattern: None,
             })
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         assert!(result.is_empty());
     }

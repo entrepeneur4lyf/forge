@@ -106,7 +106,7 @@ impl ToolService for ForgeToolService {
 
 #[cfg(test)]
 mod test {
-    use forge_domain::{Tool, ToolCallId, ToolDefinition};
+    use forge_domain::{ExecutableToolResultType, Tool, ToolCallId, ToolDefinition};
     use serde_json::{json, Value};
     use tokio::time;
 
@@ -118,8 +118,8 @@ mod test {
     impl forge_domain::ExecutableTool for SuccessTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input) -> Result<String, String> {
-            Ok(format!("Success with input: {}", input))
+        async fn call(&self, input: Self::Input) -> Result<ExecutableToolResultType, String> {
+            Ok(ExecutableToolResultType::Text(format!("Success with input: {}", input)))
         }
     }
 
@@ -129,7 +129,7 @@ mod test {
     impl forge_domain::ExecutableTool for FailureTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> Result<String, String> {
+        async fn call(&self, _input: Self::Input) -> Result<ExecutableToolResultType, String> {
             Err("Tool call failed with simulated failure".to_string())
         }
     }
@@ -203,10 +203,10 @@ mod test {
     impl forge_domain::ExecutableTool for SlowTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> Result<String, String> {
+        async fn call(&self, _input: Self::Input) -> Result<ExecutableToolResultType, String> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(400)).await;
-            Ok("Slow tool completed".to_string())
+            Ok(ExecutableToolResultType::Text("Slow tool completed".to_string()))
         }
     }
 
