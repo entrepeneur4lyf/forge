@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(version = env!("CARGO_PKG_VERSION"))]
@@ -44,4 +44,63 @@ pub struct Cli {
     /// Path to a file containing the workflow to execute.
     #[arg(long, short = 'w')]
     pub workflow: Option<PathBuf>,
+
+    #[command(subcommand)]
+    pub snapshot: Option<Snapshot>,
+}
+
+#[derive(Subcommand)]
+pub enum Snapshot {
+    Snapshot {
+        #[command(subcommand)]
+        sub_command: SnapshotCommand,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum SnapshotCommand {
+    /// List all snapshots for a file
+    List {
+        /// Path to the file
+        path: PathBuf,
+    },
+
+    /// Restore a file from a snapshot
+    Restore {
+        /// Path to the file
+        path: PathBuf,
+
+        /// Restore by timestamp
+        #[arg(long)]
+        timestamp: Option<u64>,
+
+        /// Restore by index
+        #[arg(long)]
+        index: Option<usize>,
+
+        /// Restore the previous version
+        #[arg(long)]
+        previous: bool,
+    },
+
+    /// Show differences between versions of a file
+    Diff {
+        /// Path to the file
+        path: PathBuf,
+
+        /// Show diff for a specific timestamp
+        #[arg(long)]
+        timestamp: Option<u64>,
+
+        /// Show diff with the previous version
+        #[arg(long)]
+        previous: bool,
+    },
+
+    /// Purge old snapshots
+    Purge {
+        /// Remove snapshots older than a specific number of days (default: 30)
+        #[arg(long, default_value_t = 30)]
+        older_than: u32,
+    },
 }

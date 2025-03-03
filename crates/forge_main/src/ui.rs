@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use tokio_stream::StreamExt;
 
 use crate::banner;
-use crate::cli::Cli;
+use crate::cli::{Cli, Snapshot};
 use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::{Console, PromptInput};
@@ -61,6 +61,11 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        if let Some(snapshot_command) = self.cli.snapshot.as_ref() {
+            return match snapshot_command {
+                Snapshot::Snapshot { sub_command } => Ok(()),
+            };
+        }
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {

@@ -44,4 +44,8 @@ impl Environment {
     pub fn history_path(&self) -> PathBuf {
         self.base_path.join(".forge_history")
     }
+
+    pub fn snapshots_dir(&self) -> PathBuf {
+        self.base_path.join("snapshots")
+    }
 }
