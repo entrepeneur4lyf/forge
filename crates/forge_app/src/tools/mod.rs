@@ -43,7 +43,7 @@ mod tests {
     use forge_domain::{Environment, Point, Query, Suggestion};
 
     use super::*;
-    use crate::{EmbeddingService, FileReadService, VectorIndex};
+    use crate::{EmbeddingService, FileService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -86,9 +86,17 @@ mod tests {
         }
     }
     #[async_trait::async_trait]
-    impl FileReadService for Stub {
+    impl FileService for Stub {
         async fn read(&self, _path: &Path) -> anyhow::Result<Bytes> {
             unimplemented!()
+        }
+
+        async fn write(&self, _: &Path, _: Bytes) -> anyhow::Result<()> {
+            todo!()
+        }
+
+        async fn create_dirs_all(&self, _: &Path) -> anyhow::Result<()> {
+            todo!()
         }
     }
     #[async_trait::async_trait]
@@ -105,7 +113,7 @@ mod tests {
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
-        type FileReadService = Stub;
+        type FileService = Stub;
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
 
@@ -113,7 +121,7 @@ mod tests {
             self
         }
 
-        fn file_read_service(&self) -> &Self::FileReadService {
+        fn file_service(&self) -> &Self::FileService {
             self
         }
 

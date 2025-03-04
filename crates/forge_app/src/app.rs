@@ -68,7 +68,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
 
 impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     type EnvironmentService = F::EnvironmentService;
-    type FileReadService = F::FileReadService;
+    type FileService = F::FileService;
     type VectorIndex = F::VectorIndex;
     type EmbeddingService = F::EmbeddingService;
 
@@ -76,8 +76,8 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
         self.infra.environment_service()
     }
 
-    fn file_read_service(&self) -> &Self::FileReadService {
-        self.infra.file_read_service()
+    fn file_service(&self) -> &Self::FileService {
+        self.infra.file_service()
     }
 
     fn vector_index(&self) -> &Self::VectorIndex {

@@ -28,9 +28,15 @@ pub trait EnvironmentService {
 /// This trait provides an abstraction over file reading operations, allowing
 /// for both real file system access and test mocking.
 #[async_trait::async_trait]
-pub trait FileReadService: Send + Sync {
+pub trait FileService: Send + Sync {
     /// Reads the content of a file at the specified path.
     async fn read(&self, path: &Path) -> anyhow::Result<Bytes>;
+
+    /// Writes the content to the specified path.
+    async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()>;
+
+    /// Creates all dirs in the path.
+    async fn create_dirs_all(&self, path: &Path) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
@@ -46,12 +52,12 @@ pub trait EmbeddingService: Send + Sync {
 
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
-    type FileReadService: FileReadService;
+    type FileService: FileService;
     type VectorIndex: VectorIndex<Suggestion>;
     type EmbeddingService: EmbeddingService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
-    fn file_read_service(&self) -> &Self::FileReadService;
+    fn file_service(&self) -> &Self::FileService;
     fn vector_index(&self) -> &Self::VectorIndex;
     fn embedding_service(&self) -> &Self::EmbeddingService;
 }

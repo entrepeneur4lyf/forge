@@ -2,11 +2,11 @@ use forge_app::{EnvironmentService, Infrastructure};
 
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;
-use crate::file_read::ForgeFileReadService;
+use crate::file_read::ForgeFileService;
 use crate::qdrant::QdrantVectorIndex;
 
 pub struct ForgeInfra {
-    file_read_service: ForgeFileReadService,
+    file_service: ForgeFileService,
     environment_service: ForgeEnvironmentService,
     information_repo: QdrantVectorIndex,
     embedding_service: OpenAIEmbeddingService,
@@ -17,7 +17,7 @@ impl ForgeInfra {
         let _environment_service = ForgeEnvironmentService::new(restricted);
         let env = _environment_service.get_environment();
         Self {
-            file_read_service: ForgeFileReadService::new(),
+            file_service: ForgeFileService::new(),
             environment_service: _environment_service,
             information_repo: QdrantVectorIndex::new(env.clone(), "user_feedback"),
             embedding_service: OpenAIEmbeddingService::new(env),
@@ -27,7 +27,7 @@ impl ForgeInfra {
 
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
-    type FileReadService = ForgeFileReadService;
+    type FileService = ForgeFileService;
     type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = OpenAIEmbeddingService;
 
@@ -35,8 +35,8 @@ impl Infrastructure for ForgeInfra {
         &self.environment_service
     }
 
-    fn file_read_service(&self) -> &Self::FileReadService {
-        &self.file_read_service
+    fn file_service(&self) -> &Self::FileService {
+        &self.file_service
     }
 
     fn vector_index(&self) -> &Self::VectorIndex {

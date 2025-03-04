@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_app::{FileReadService, Infrastructure};
+use forge_app::{FileService, Infrastructure};
 use forge_domain::Workflow;
 
 // Default forge.yaml content embedded in the binary
@@ -25,13 +25,13 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     /// default if neither exists.
     pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         let content = match path {
-            Some(path) => String::from_utf8(self.0.file_read_service().read(path).await?.to_vec())?,
+            Some(path) => String::from_utf8(self.0.file_service().read(path).await?.to_vec())?,
             None => {
                 let current_dir_config = Path::new("forge.yaml");
                 if current_dir_config.exists() {
                     String::from_utf8(
                         self.0
-                            .file_read_service()
+                            .file_service()
                             .read(current_dir_config)
                             .await?
                             .to_vec(),

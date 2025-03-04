@@ -5,7 +5,7 @@ use std::sync::Arc;
 use base64::Engine;
 use forge_domain::{Attachment, AttachmentService, ContentType};
 
-use crate::{FileReadService, Infrastructure};
+use crate::{FileService, Infrastructure};
 // TODO: bring pdf support, pdf is just a collection of images.
 
 pub struct ForgeChatRequest<F> {
@@ -32,7 +32,7 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
 
     async fn populate_attachments(&self, path: PathBuf) -> anyhow::Result<Attachment> {
         let extension = path.extension().map(|v| v.to_string_lossy().to_string());
-        let read = self.infra.file_read_service().read(path.as_path()).await?;
+        let read = self.infra.file_service().read(path.as_path()).await?;
         let path = path.to_string_lossy().to_string();
         if let Some(img_extension) = extension.and_then(|ext| match ext.as_str() {
             "jpeg" | "jpg" => Some("jpeg"),
@@ -70,7 +70,7 @@ mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        EmbeddingService, EnvironmentService, FileReadService, Infrastructure, VectorIndex,
+        EmbeddingService, EnvironmentService, FileService, Infrastructure, VectorIndex,
     };
 
     struct MockEnvironmentService {}
@@ -125,13 +125,21 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileReadService for MockFileReadService {
+    impl FileService for MockFileReadService {
         async fn read(&self, path: &Path) -> anyhow::Result<Bytes> {
             let files = self.files.lock().unwrap();
             match files.get(path) {
                 Some(content) => Ok(Bytes::from(content.clone())),
                 None => Err(anyhow::anyhow!("File not found: {:?}", path)),
             }
+        }
+
+        async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()> {
+            todo!()
+        }
+
+        async fn create_dirs_all(&self, path: &Path) -> anyhow::Result<()> {
+            todo!()
         }
     }
 
@@ -177,7 +185,7 @@ mod tests {
 
     impl Infrastructure for MockInfrastructure {
         type EnvironmentService = MockEnvironmentService;
-        type FileReadService = MockFileReadService;
+        type FileService = MockFileReadService;
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
 
@@ -185,7 +193,7 @@ mod tests {
             &self.env_service
         }
 
-        fn file_read_service(&self) -> &Self::FileReadService {
+        fn file_service(&self) -> &Self::FileService {
             &self.file_service
         }
 
