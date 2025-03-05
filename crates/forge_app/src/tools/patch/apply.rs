@@ -1,17 +1,19 @@
-use super::marker::{DIVIDER, REPLACE, SEARCH};
-use super::parse::{self, PatchBlock};
-use crate::tools::syn;
-use crate::tools::utils::assert_absolute_path;
-use crate::{FileExist, FileReadService, FileWriteService, Infrastructure};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use anyhow::bail;
 use dissimilar::Chunk;
 use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use thiserror::Error;
+
+use super::marker::{DIVIDER, REPLACE, SEARCH};
+use super::parse::{self, PatchBlock};
+use crate::tools::syn;
+use crate::tools::utils::assert_absolute_path;
+use crate::{FileExist, FileReadService, FileWriteService, Infrastructure};
 
 #[derive(Debug, Error)]
 enum Error {
@@ -34,7 +36,6 @@ pub struct ApplyPatchInput {
 pub struct ApplyPatch<T>(Arc<T>);
 
 impl<T: Infrastructure> ApplyPatch<T> {
-    
     #[allow(unused)]
     pub fn new(infra: Arc<T>) -> ApplyPatch<T> {
         Self(infra)
@@ -220,10 +221,11 @@ impl<T: Infrastructure> ExecutableTool for ApplyPatch<T> {
 
 #[cfg(test)]
 mod test {
+    use std::io::{Error as IoError, ErrorKind as IoErrorKind};
+
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
-    use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
     async fn write_test_file(
         path: impl AsRef<Path>,
@@ -561,7 +563,15 @@ mod test {
             .unwrap();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
-        let content1 = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        let content1 = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
         insta::assert_snapshot!(content1);
 
         // Test fuzzy matching with error handling changes
@@ -574,7 +584,15 @@ mod test {
             .unwrap();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
-        let content2 = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        let content2 = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
         insta::assert_snapshot!(content2);
     }
 
@@ -599,7 +617,15 @@ mod test {
             .unwrap();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
-        let content = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        let content = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
         insta::assert_snapshot!(content);
     }
 
@@ -621,7 +647,15 @@ mod test {
             .unwrap();
 
         insta::assert_snapshot!(TempDir::normalize(&result));
-        let content = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        let content = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
         insta::assert_snapshot!(content);
     }
     #[tokio::test]
