@@ -191,6 +191,15 @@ pub mod tests {
     #[async_trait::async_trait]
     impl FileWriteService for MockFileService {
         async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()> {
+            let index = self
+                .files
+                .lock()
+                .unwrap()
+                .iter()
+                .position(|v| v.0 == path);
+            if let Some(index) = index {
+                self.files.lock().unwrap().remove(index);
+            }
             self.files
                 .lock()
                 .unwrap()

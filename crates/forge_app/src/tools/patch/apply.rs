@@ -34,6 +34,8 @@ pub struct ApplyPatchInput {
 pub struct ApplyPatch<T>(Arc<T>);
 
 impl<T: Infrastructure> ApplyPatch<T> {
+    
+    #[allow(unused)]
     pub fn new(infra: Arc<T>) -> ApplyPatch<T> {
         Self(infra)
     }
@@ -301,282 +303,341 @@ mod test {
         .unwrap();
         insta::assert_snapshot!(final_content);
     }
+    #[tokio::test]
+    async fn test_empty_search_new_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
 
-    /*
-        #[tokio::test]
-        async fn test_empty_search_new_file() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.txt");
+        let infra = Arc::new(write_test_file(&file_path, "").await.unwrap());
 
-            write_test_file(&file_path, "").await.unwrap();
+        let fs_replace = ApplyPatch::new(infra.clone());
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\n{DIVIDER}\nNew content\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
 
-            let fs_replace = ApplyPatch;
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!("{SEARCH}\n{DIVIDER}\nNew content\n{REPLACE}\n").to_string(),
-                })
+        insta::assert_snapshot!(TempDir::normalize(&result));
+
+        // Also snapshot the final file content
+        let final_content = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
                 .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-
-            // Also snapshot the final file content
-            let final_content = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(final_content);
-        }
-
-        #[tokio::test]
-        async fn test_multiple_blocks() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.txt");
-            let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
-
-            write_test_file(&file_path, content).await.unwrap();
-
-            let fs_replace = ApplyPatch;
-            let diff = format!("{SEARCH}\n    First Line    \n{DIVIDER}\n    New First    \n{REPLACE}\n{SEARCH}\n    Last Line    \n{DIVIDER}\n    New Last    \n{REPLACE}\n").to_string();
-
-            let result = fs_replace
-                .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff })
-                .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-
-            // Also snapshot the final file content to verify both replacements
-            let final_content = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(final_content);
-        }
-
-        #[tokio::test]
-        async fn test_empty_block() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.txt");
-            let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
-
-            write_test_file(&file_path, content).await.unwrap();
-
-            let fs_replace = ApplyPatch;
-            let diff = format!("{SEARCH}\n  Middle Line  \n{DIVIDER}\n{REPLACE}\n");
-            let result = fs_replace
-                .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff })
-                .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-
-            // Also snapshot the final file content to verify the line was removed
-            let final_content = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(final_content);
-        }
-
-        #[tokio::test]
-        async fn test_complex_newline_preservation() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.txt");
-
-            // Test file with various newline patterns
-            let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
-            write_test_file(&file_path, content).await.unwrap();
-
-            let fs_replace = ApplyPatch;
-
-            // Test 1: Replace content while preserving surrounding newlines
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!("{SEARCH}\n    let x = 1;\n\n\n    console.log(x);\n{DIVIDER}\n    let y = 2;\n\n\n    console.log(y);\n{REPLACE}\n").to_string(),
-                })
-                .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content1 = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content1);
-
-            // Test 2: Replace block with different newline pattern
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!(
-                        "{SEARCH}\n\n// Footer comment\n\n\n{DIVIDER}\n\n\n\n// Updated footer\n\n{REPLACE}\n"
-                    )
-                        .to_string(),
-                })
-                .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content2 = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content2);
-
-            // Test 3: Replace with empty lines preservation
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!(
-                        "{SEARCH}\n\n\n// Header comment\n\n\n{DIVIDER}\n\n\n\n// New header\n\n\n\n{REPLACE}\n"
-                    )
-                        .to_string(),
-                })
-                .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content3 = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content3);
-        }
-
-        #[tokio::test]
-        async fn test_fuzzy_search_replace() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.txt");
-
-            // Test file with typos and variations
-            let content = r#"function calculateTotal(items) {
-      let total = 0;
-      for (const itm of items) {
-        total += itm.price;
-      }
-      return total;
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(final_content);
     }
-    "#;
-            write_test_file(&file_path, content).await.unwrap();
+    #[tokio::test]
+    async fn test_multiple_blocks() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
 
-            let fs_replace = ApplyPatch;
-            // Search with different casing, spacing, and variable names
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!("{SEARCH}\n  for (const itm of items) {{\n    total += itm.price;\n{DIVIDER}\n  for (const item of items) {{\n    total += item.price * item.quantity;\n{REPLACE}\n").to_string(),
-                })
+        let infra = Arc::new(write_test_file(&file_path, content).await.unwrap());
+
+        let fs_replace = ApplyPatch::new(infra.clone());
+        let diff = format!("{SEARCH}\n    First Line    \n{DIVIDER}\n    New First    \n{REPLACE}\n{SEARCH}\n    Last Line    \n{DIVIDER}\n    New Last    \n{REPLACE}\n").to_string();
+
+        let result = fs_replace
+            .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+
+        // Also snapshot the final file content to verify both replacements
+        let final_content = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
                 .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content1 = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content1);
-
-            // Test fuzzy matching with more variations
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!("{SEARCH}\nfunction calculateTotal(items) {{\n  let total = 0;\n{DIVIDER}\nfunction computeTotal(items, tax = 0) {{\n  let total = 0.0;\n{REPLACE}\n").to_string(),
-                })
-                .await
-                .unwrap();
-
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content2 = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content2);
-        }
-
-        #[tokio::test]
-        async fn test_fuzzy_search_advanced() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.txt");
-
-            // Test file with more complex variations
-            let content = r#"class UserManager {
-      async getUserById(userId) {
-        const user = await db.findOne({ id: userId });
-        if (!user) throw new Error('User not found');
-        return user;
-      }
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(final_content);
     }
-    "#;
-            write_test_file(&file_path, content).await.unwrap();
 
-            let fs_replace = ApplyPatch;
-            // Search with structural similarities but different variable names and spacing
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!("{SEARCH}\n  async getUserById(userId) {{\n    const user = await db.findOne({{ id: userId }});\n{DIVIDER}\n  async findUser(id, options = {{}}) {{\n    const user = await this.db.findOne({{ userId: id, ...options }});\n{REPLACE}\n").to_string(),
-                })
+    #[tokio::test]
+    async fn test_empty_block() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
+
+        let infra = Arc::new(write_test_file(&file_path, content).await.unwrap());
+
+        let fs_replace = ApplyPatch::new(infra.clone());
+        let diff = format!("{SEARCH}\n  Middle Line  \n{DIVIDER}\n{REPLACE}\n");
+        let result = fs_replace
+            .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+
+        // Also snapshot the final file content to verify the line was removed
+        let final_content = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
                 .await
-                .unwrap();
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(final_content);
+    }
 
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content1 = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content1);
+    #[tokio::test]
+    async fn test_complex_newline_preservation() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
 
-            // Test fuzzy matching with error handling changes
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!("{SEARCH}\n    if (!user) throw new Error('User not found');\n    return user;\n{DIVIDER}\n    if (!user) {{\n      throw new UserNotFoundError(id);\n    }}\n    return this.sanitizeUser(user);\n{REPLACE}\n").to_string(),
-                })
+        // Test file with various newline patterns
+        let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
+        let infra = Arc::new(write_test_file(&file_path, content).await.unwrap());
+
+        let fs_replace = ApplyPatch::new(infra.clone());
+
+        // Test 1: Replace content while preserving surrounding newlines
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\n    let x = 1;\n\n\n    console.log(x);\n{DIVIDER}\n    let y = 2;\n\n\n    console.log(y);\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content1 = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
                 .await
-                .unwrap();
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(content1);
 
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content2 = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content2);
-        }
+        // Test 2: Replace block with different newline pattern
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!(
+                    "{SEARCH}\n\n// Footer comment\n\n\n{DIVIDER}\n\n\n\n// Updated footer\n\n{REPLACE}\n"
+                )
+                    .to_string(),
+            })
+            .await
+            .unwrap();
 
-        #[tokio::test]
-        async fn test_invalid_rust_replace() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.rs");
-            let content = "fn main() { let x = 42; }";
-
-            write_test_file(&file_path, content).await.unwrap();
-
-            let fs_replace = ApplyPatch;
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!(
-                        "{SEARCH}\nfn main() {{ let x = 42; }}\n{DIVIDER}\nfn main() {{ let x = \n{REPLACE}\n"
-                    )
-                        .to_string(),
-                })
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content2 = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
                 .await
-                .unwrap();
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(content2);
 
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content);
-        }
+        // Test 3: Replace with empty lines preservation
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!(
+                    "{SEARCH}\n\n\n// Header comment\n\n\n{DIVIDER}\n\n\n\n// New header\n\n\n\n{REPLACE}\n"
+                )
+                    .to_string(),
+            })
+            .await
+            .unwrap();
 
-        #[tokio::test]
-        async fn test_valid_rust_replace() {
-            let temp_dir = TempDir::new().unwrap();
-            let file_path = temp_dir.path().join("test.rs");
-            let content = "fn main() { let x = 42; }";
-
-            write_test_file(&file_path, content).await.unwrap();
-
-            let fs_replace = ApplyPatch;
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: file_path.to_string_lossy().to_string(),
-                    diff: format!("{SEARCH}\nfn main() {{ let x = 42; }}\n{DIVIDER}\nfn main() {{ let x = 42; let y = x * 2; }}\n{REPLACE}\n").to_string(),
-                })
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content3 = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
                 .await
-                .unwrap();
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(content3);
+    }
 
-            insta::assert_snapshot!(TempDir::normalize(&result));
-            let content = fs::read_to_string(&file_path).await.unwrap();
-            insta::assert_snapshot!(content);
-        }
+    #[tokio::test]
+    async fn test_fuzzy_search_replace() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
 
-        #[tokio::test]
-        async fn test_patch_relative_path() {
-            let fs_replace = ApplyPatch;
-            let result = fs_replace
-                .call(ApplyPatchInput {
-                    path: "relative/path.txt".to_string(),
-                    diff: format!("{SEARCH}\ntest\n{DIVIDER}\nreplacement\n{REPLACE}\n"),
-                })
-                .await;
+        // Test file with typos and variations
+        let content = r#"function calculateTotal(items) {
+  let total = 0;
+  for (const itm of items) {
+    total += itm.price;
+  }
+  return total;
+}
+"#;
+        let infra = Arc::new(write_test_file(&file_path, content).await.unwrap());
 
-            assert!(result.is_err());
-            assert!(result
-                .unwrap_err()
-                .to_string()
-                .contains("Path must be absolute"));
-        }*/
+        let fs_replace = ApplyPatch::new(infra.clone());
+        // Search with different casing, spacing, and variable names
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\n  for (const itm of items) {{\n    total += itm.price;\n{DIVIDER}\n  for (const item of items) {{\n    total += item.price * item.quantity;\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content1 = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(content1);
+
+        // Test fuzzy matching with more variations
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\nfunction calculateTotal(items) {{\n  let total = 0;\n{DIVIDER}\nfunction computeTotal(items, tax = 0) {{\n  let total = 0.0;\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content2 = String::from_utf8(
+            infra
+                .file_read_service()
+                .read(&file_path)
+                .await
+                .unwrap()
+                .to_vec(),
+        )
+        .unwrap();
+        insta::assert_snapshot!(content2);
+    }
+    #[tokio::test]
+    async fn test_fuzzy_search_advanced() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Test file with more complex variations
+        let content = r#"class UserManager {
+  async getUserById(userId) {
+    const user = await db.findOne({ id: userId });
+    if (!user) throw new Error('User not found');
+    return user;
+  }
+}
+"#;
+        let infra = Arc::new(write_test_file(&file_path, content).await.unwrap());
+
+        let fs_replace = ApplyPatch::new(infra.clone());
+        // Search with structural similarities but different variable names and spacing
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\n  async getUserById(userId) {{\n    const user = await db.findOne({{ id: userId }});\n{DIVIDER}\n  async findUser(id, options = {{}}) {{\n    const user = await this.db.findOne({{ userId: id, ...options }});\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content1 = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        insta::assert_snapshot!(content1);
+
+        // Test fuzzy matching with error handling changes
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\n    if (!user) throw new Error('User not found');\n    return user;\n{DIVIDER}\n    if (!user) {{\n      throw new UserNotFoundError(id);\n    }}\n    return this.sanitizeUser(user);\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content2 = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        insta::assert_snapshot!(content2);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_rust_replace() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        let content = "fn main() { let x = 42; }";
+
+        let infra = Arc::new(write_test_file(&file_path, content).await.unwrap());
+
+        let fs_replace = ApplyPatch::new(infra.clone());
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!(
+                    "{SEARCH}\nfn main() {{ let x = 42; }}\n{DIVIDER}\nfn main() {{ let x = \n{REPLACE}\n"
+                )
+                    .to_string(),
+            })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        insta::assert_snapshot!(content);
+    }
+
+    #[tokio::test]
+    async fn test_valid_rust_replace() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        let content = "fn main() { let x = 42; }";
+
+        let infra = Arc::new(write_test_file(&file_path, content).await.unwrap());
+
+        let fs_replace = ApplyPatch::new(infra.clone());
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\nfn main() {{ let x = 42; }}\n{DIVIDER}\nfn main() {{ let x = 42; let y = x * 2; }}\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
+        let content = String::from_utf8(infra.file_read_service().read(&file_path).await.unwrap().to_vec()).unwrap();
+        insta::assert_snapshot!(content);
+    }
+    #[tokio::test]
+    async fn test_patch_relative_path() {
+        let fs_replace = ApplyPatch::new(Arc::new(MockInfrastructure::new()));
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: "relative/path.txt".to_string(),
+                diff: format!("{SEARCH}\ntest\n{DIVIDER}\nreplacement\n{REPLACE}\n"),
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
+    }
 }
