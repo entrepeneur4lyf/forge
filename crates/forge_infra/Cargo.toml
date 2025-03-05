@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+forge_snaps = {path = "../forge_snaps"}
+forge_fs = {path = "../forge_fs"}
 anyhow = "1.0.95"
 async-trait = "0.1.86"
 dirs = "6.0.0"

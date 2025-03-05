@@ -1,14 +1,15 @@
-use std::path::Path;
-
+use crate::tools::syn;
+use crate::tools::utils::assert_absolute_path;
+use crate::{FileWriteService, Infrastructure};
 use anyhow::Context;
+use bytes::Bytes;
 use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
-
-use crate::tools::syn;
-use crate::tools::utils::assert_absolute_path;
+use std::path::Path;
+use std::sync::Arc;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
@@ -32,16 +33,22 @@ pub struct FSWriteInput {
 /// IMPORTANT: DO NOT attempt to use this tool to move or rename files, use the
 /// shell tool instead.
 #[derive(ToolDescription)]
-pub struct FSWrite;
+pub struct FSWrite<F>(Arc<F>);
 
-impl NamedTool for FSWrite {
+impl<F: Infrastructure> FSWrite<F> {
+    pub fn new(f: Arc<F>) -> Self {
+        Self(f)
+    }
+} 
+
+impl<F> NamedTool for FSWrite<F> {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_create")
     }
 }
 
 #[async_trait::async_trait]
-impl ExecutableTool for FSWrite {
+impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
     type Input = FSWriteInput;
 
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
@@ -83,7 +90,10 @@ impl ExecutableTool for FSWrite {
         };
 
         // Write file only after validation passes and directories are created
-        tokio::fs::write(&input.path, &input.content).await?;
+        self.0
+            .file_write_service()
+            .write(Path::new(&input.path), Bytes::from(input.content.clone()))
+            .await?;
 
         let mut result = format!(
             "Successfully wrote {} bytes to {}",

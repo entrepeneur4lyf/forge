@@ -1,18 +1,19 @@
-use std::path::{Path, PathBuf};
-
+use super::marker::{DIVIDER, REPLACE, SEARCH};
+use super::parse::{self, PatchBlock};
+use crate::tools::syn;
+use crate::tools::utils::assert_absolute_path;
+use crate::{FileWriteService, Infrastructure};
 use anyhow::bail;
+use bytes::Bytes;
 use dissimilar::Chunk;
 use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::fs;
-
-use super::marker::{DIVIDER, REPLACE, SEARCH};
-use super::parse::{self, PatchBlock};
-use crate::tools::syn;
-use crate::tools::utils::assert_absolute_path;
 
 #[derive(Debug, Error)]
 enum Error {
@@ -32,15 +33,22 @@ pub struct ApplyPatchInput {
     pub diff: String,
 }
 
-pub struct ApplyPatch;
+pub struct ApplyPatch<F>(Arc<F>);
 
-impl NamedTool for ApplyPatch {
+impl<F: Infrastructure> ApplyPatch<F> {
+    #[allow(unused)]
+    pub fn new(input: Arc<F>) -> Self {
+        Self(input)
+    }
+}
+
+impl<F> NamedTool for ApplyPatch<F> {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_patch")
     }
 }
 
-impl ToolDescription for ApplyPatch {
+impl<F> ToolDescription for ApplyPatch<F> {
     fn description(&self) -> String {
         format!(
             r#"Replace sections in a file using multiple SEARCH/REPLACE blocks. Example:
@@ -141,7 +149,7 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 }
 
 #[async_trait::async_trait]
-impl ExecutableTool for ApplyPatch {
+impl<F: Infrastructure> ExecutableTool for ApplyPatch<F> {
     type Input = ApplyPatchInput;
 
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
@@ -161,9 +169,9 @@ impl ExecutableTool for ApplyPatch {
 
         let result = async {
             let modified = apply_patches(old_content.clone(), blocks).await?;
-            fs::write(&input.path, &modified)
+            self.0.file_write_service().write(Path::new(&input.path), Bytes::from(modified.clone()))
                 .await
-                .map_err(Error::FileOperation)?;
+                .map_err(|v| Error::FileOperation(std::io::Error::new(std::io::ErrorKind::Other, v)))?;
 
             let syntax_warning = syn::validate(&input.path, &modified);
 

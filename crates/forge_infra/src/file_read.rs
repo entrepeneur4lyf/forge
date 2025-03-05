@@ -21,7 +21,7 @@ impl ForgeFileReadService {
 #[async_trait::async_trait]
 impl FileReadService for ForgeFileReadService {
     async fn read(&self, path: &Path) -> Result<Bytes> {
-        Ok(tokio::fs::read(path)
+        Ok(forge_fs::ForgeFS::read(path)
             .await
             .map(Bytes::from)
             .with_context(|| format!("Failed to read file: {}", path.display()))?)

@@ -4,7 +4,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_app::{EnvironmentService, ForgeApp, Infrastructure};
 use forge_domain::*;
-use forge_infra::ForgeInfra;
+use forge_infra::{ForgeInfra, Resolved};
+use forge_snaps::{FileSnapshotService, FileSnapshotServiceImpl};
 use forge_stream::MpscStream;
 
 use crate::executor::ForgeExecutorService;
@@ -17,24 +18,31 @@ pub struct ForgeAPI<F> {
     executor_service: ForgeExecutorService<F>,
     suggestion_service: ForgeSuggestionService<F>,
     loader: ForgeLoaderService<F>,
+    snap_service: Arc<FileSnapshotServiceImpl>,
 }
 
 impl<F: App + Infrastructure> ForgeAPI<F> {
-    pub fn new(app: Arc<F>) -> Self {
+    pub fn new(app: Arc<F>, snap_service: Arc<FileSnapshotServiceImpl>) -> Self {
         Self {
             app: app.clone(),
             executor_service: ForgeExecutorService::new(app.clone()),
             suggestion_service: ForgeSuggestionService::new(app.clone()),
             loader: ForgeLoaderService::new(app.clone()),
+            snap_service,
         }
     }
 }
 
-impl ForgeAPI<ForgeApp<ForgeInfra>> {
+impl ForgeAPI<ForgeApp<ForgeInfra<Resolved>>> {
     pub fn init(restricted: bool) -> Self {
-        let infra = Arc::new(ForgeInfra::new(restricted));
+        let infra = ForgeInfra::new(restricted);
+        let snap_service = Arc::new(FileSnapshotServiceImpl::new(
+            infra.env().get_environment().snapshot_path(),
+        ));
+
+        let infra = Arc::new(infra.transform(snap_service.clone()));
         let app = Arc::new(ForgeApp::new(infra));
-        ForgeAPI::new(app)
+        ForgeAPI::new(app, snap_service)
     }
 }
 
@@ -76,5 +84,9 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>> {
         self.app.conversation_service().get(conversation_id).await
+    }
+
+    fn snap_service(&self) -> Arc<dyn FileSnapshotService> {
+        self.snap_service.clone()
     }
 }

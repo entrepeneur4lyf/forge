@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
+use crate::banner;
+use crate::cli::{Cli, Snapshot, SnapshotCommand};
+use crate::console::CONSOLE;
+use crate::info::Info;
+use crate::input::{Console, PromptInput};
+use crate::model::{Command, UserInput};
 use anyhow::Result;
 use colored::Colorize;
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, Model, Usage, API,
 };
 use forge_display::TitleFormat;
+use forge_snaps::SnapshotInfo;
 use forge_tracker::EventKind;
 use lazy_static::lazy_static;
 use tokio_stream::StreamExt;
-
-use crate::banner;
-use crate::cli::Cli;
-use crate::console::CONSOLE;
-use crate::info::Info;
-use crate::input::{Console, PromptInput};
-use crate::model::{Command, UserInput};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -77,6 +77,11 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        if let Some(snapshot_command) = self.cli.snapshot.as_ref() {
+            return match snapshot_command {
+                Snapshot::Snapshot { sub_command } => self.handle_snaps(sub_command).await,
+            };
+        }
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {
@@ -150,6 +155,31 @@ impl<F: API> UI<F> {
         }
 
         Ok(())
+    }
+    async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
+        match snapshot_command {
+            SnapshotCommand::List { path } => {
+                let snapshot_service = self.api.snap_service();
+                let snapshots: Vec<SnapshotInfo> = snapshot_service.list_snapshots(path).await?;
+                for v in snapshots {
+                    CONSOLE.writeln(format!(
+                        "{}\n{}\n",
+                        v.timestamp,
+                        v.original_path.display(),
+                    ))?;
+                }
+                Ok(())
+            }
+            SnapshotCommand::Restore { .. } => {
+                todo!()
+            }
+            SnapshotCommand::Diff { .. } => {
+                todo!()
+            }
+            SnapshotCommand::Purge { .. } => {
+                todo!()
+            }
+        }
     }
 
     async fn chat(&mut self, content: String) -> Result<()> {

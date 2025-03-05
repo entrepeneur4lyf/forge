@@ -93,9 +93,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.96"
+version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b964d184e89d9b6b67dd2715bc8e74cf3107fb2b529990c90cf517326150bf4"
+checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 
 [[package]]
 name = "assert-json-diff"
@@ -153,9 +153,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.86"
+version = "0.1.87"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "644dd749086bf3771a2fbc5f256fdb982d53f011c7d5d560304eafeecebce79d"
+checksum = "d556ec1359574147ec0c4fc5eb525f3f23263a592b1a9c07e0a75b427de55c97"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -896,6 +896,7 @@ dependencies = [
  "derive_setters",
  "forge_api",
  "forge_display",
+ "forge_snaps",
  "forge_tracker",
  "forge_walker",
  "insta",
@@ -920,6 +921,7 @@ dependencies = [
  "forge_app",
  "forge_domain",
  "forge_infra",
+ "forge_snaps",
  "forge_stream",
  "forge_walker",
  "insta",
@@ -945,6 +947,7 @@ dependencies = [
  "forge_display",
  "forge_domain",
  "forge_open_router",
+ "forge_snaps",
  "forge_tool_macros",
  "forge_walker",
  "futures",
@@ -1035,6 +1038,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_fs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tokio",
+]
+
+[[package]]
 name = "forge_infra"
 version = "0.1.0"
 dependencies = [
@@ -1045,6 +1056,8 @@ dependencies = [
  "dotenv",
  "forge_app",
  "forge_domain",
+ "forge_fs",
+ "forge_snaps",
  "qdrant-client",
  "reqwest 0.12.12",
  "serde",
@@ -1088,6 +1101,19 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "forge_snaps"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "forge_fs",
+ "forge_walker",
+ "sha2",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -3605,9 +3631,9 @@ checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 
 [[package]]
 name = "tempfile"
-version = "3.16.0"
+version = "3.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38c246215d7d24f48ae091a2902398798e05d978b24315d6efbc00ede9a8bb91"
+checksum = "22e5a0acb1f3f55f65cc4a866c361b2fb2a0ff6366785ae6fbb5f85df07ba230"
 dependencies = [
  "cfg-if",
  "fastrand",

@@ -1,6 +1,10 @@
+use bytes::Bytes;
 use std::path::Path;
-
+use std::sync::Arc;
 // No longer using dissimilar for fuzzy matching
+use crate::tools::syn;
+use crate::tools::utils::assert_absolute_path;
+use crate::{FileWriteService, Infrastructure};
 use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -9,9 +13,6 @@ use serde::{Deserialize, Serialize};
 use strum_macros::AsRefStr;
 use thiserror::Error;
 use tokio::fs;
-
-use crate::tools::syn;
-use crate::tools::utils::assert_absolute_path;
 
 // Removed fuzzy matching threshold as we only use exact matching now
 
@@ -207,11 +208,17 @@ pub struct Input {
 /// matched text in a file. The operation is applied to the first match found in
 /// the text.
 #[derive(ToolDescription)]
-pub struct ApplyPatchJson;
+pub struct ApplyPatchJson<F>(Arc<F>);
 
-impl NamedTool for ApplyPatchJson {
+impl<F: Infrastructure> NamedTool for ApplyPatchJson<F> {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_patch")
+    }
+}
+
+impl<F: Infrastructure> ApplyPatchJson<F> {
+    pub fn new(input: Arc<F>) -> Self {
+        Self(input)
     }
 }
 
@@ -232,7 +239,7 @@ fn format_output(path: &str, content: &str, warning: Option<&str>) -> String {
 }
 
 #[async_trait::async_trait]
-impl ExecutableTool for ApplyPatchJson {
+impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
     type Input = Input;
 
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
@@ -264,9 +271,11 @@ impl ExecutableTool for ApplyPatchJson {
         }
 
         // Write final content to file after all patches are applied
-        fs::write(path, &current_content)
+        self.0
+            .file_write_service()
+            .write(path, Bytes::from(current_content.clone()))
             .await
-            .map_err(Error::FileOperation)?;
+            .map_err(|v| Error::FileOperation(std::io::Error::new(std::io::ErrorKind::Other, v)))?;
 
         // Check for syntax errors
         let warning = syn::validate(path, &current_content).map(|e| e.to_string());
