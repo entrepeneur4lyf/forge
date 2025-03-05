@@ -51,14 +51,19 @@ pub trait EmbeddingService: Send + Sync {
     async fn embed(&self, text: &str) -> anyhow::Result<Vec<f32>>;
 }
 
+#[async_trait::async_trait]
+pub trait FileExist: Send + Sync {
+    async fn exist(&self, path: &Path) -> anyhow::Result<bool>;
+}
+
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
     type FileWriteService: FileWriteService;
-
     type VectorIndex: VectorIndex<Suggestion>;
     type EmbeddingService: EmbeddingService;
     type FileSnapshotService: FileSnapshotService;
+    type FileExist: FileExist;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
@@ -66,4 +71,5 @@ pub trait Infrastructure: Send + Sync + 'static {
     fn vector_index(&self) -> &Self::VectorIndex;
     fn embedding_service(&self) -> &Self::EmbeddingService;
     fn file_snapshot_service(&self) -> &Self::FileSnapshotService;
+    fn file_exist_service(&self) -> &Self::FileExist;
 }

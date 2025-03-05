@@ -41,9 +41,9 @@ mod tests {
 
     use bytes::Bytes;
     use forge_domain::{Environment, Point, Query, Suggestion};
-
+    use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
     use super::*;
-    use crate::{EmbeddingService, FileReadService, FileWriteService, VectorIndex};
+    use crate::{EmbeddingService, FileExist, FileReadService, FileWriteService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -94,7 +94,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl FileWriteService for Stub {
-        async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()> {
+        async fn write(&self, _: &Path, _: Bytes) -> anyhow::Result<()> {
             unimplemented!()
         }
     }
@@ -108,6 +108,52 @@ mod tests {
             unimplemented!()
         }
     }
+    
+    #[async_trait::async_trait]
+    impl FileSnapshotService for Stub {
+        fn snapshot_dir(&self) -> PathBuf {
+            todo!()
+        }
+
+        async fn create_snapshot(&self, _: &Path) -> anyhow::Result<SnapshotInfo> {
+            todo!()
+        }
+
+        async fn list_snapshots(&self, _: &Path) -> anyhow::Result<Vec<SnapshotInfo>> {
+            todo!()
+        }
+
+        async fn restore_by_timestamp(&self, _: &Path, _: u64) -> anyhow::Result<()> {
+            todo!()
+        }
+
+        async fn restore_by_index(&self, _: &Path, _: isize) -> anyhow::Result<()> {
+            todo!()
+        }
+
+        async fn restore_previous(&self, _: &Path) -> anyhow::Result<()> {
+            todo!()
+        }
+
+        async fn get_snapshot_by_timestamp(&self, _: &Path, _: u64) -> anyhow::Result<SnapshotMetadata> {
+            todo!()
+        }
+
+        async fn get_snapshot_by_index(&self, _: &Path, _: isize) -> anyhow::Result<SnapshotMetadata> {
+            todo!()
+        }
+
+        async fn purge_older_than(&self, _: u32) -> anyhow::Result<usize> {
+            todo!()
+        }
+    }
+    
+    #[async_trait::async_trait]
+    impl FileExist for Stub {
+        async fn exist(&self, _: &Path) -> anyhow::Result<bool> {
+            todo!()
+        }
+    }
 
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
@@ -116,6 +162,8 @@ mod tests {
         type FileWriteService = Stub;
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
+        type FileSnapshotService = Stub;
+        type FileExist = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -135,6 +183,14 @@ mod tests {
 
         fn embedding_service(&self) -> &Self::EmbeddingService {
             self
+        }
+
+        fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+            self
+        }
+
+        fn file_exist_service(&self) -> &Self::FileExist {
+            todo!()
         }
     }
 

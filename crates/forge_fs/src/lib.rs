@@ -25,4 +25,7 @@ impl ForgeFS {
             .await
             .with_context(|| format!("Failed to remove file {}", path.as_ref().display()))
     }
+    pub fn exists<T: AsRef<Path>>(path: T) -> bool {
+        path.as_ref().exists()
+    }
 }

@@ -1,5 +1,6 @@
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;
+use crate::file_exists::FileExistService;
 use crate::file_read::ForgeFileReadService;
 use crate::file_write::ForgeFileWriteService;
 use crate::qdrant::QdrantVectorIndex;
@@ -17,6 +18,7 @@ pub struct ForgeInfra<T> {
     information_repo: QdrantVectorIndex,
     embedding_service: OpenAIEmbeddingService,
     snap_service: Arc<FileSnapshotServiceImpl>,
+    file_exists_service: FileExistService,
 
     _marker: std::marker::PhantomData<T>,
 }
@@ -33,6 +35,7 @@ impl ForgeInfra<UnResolved> {
             information_repo: QdrantVectorIndex::new(env.clone(), "user_feedback"),
             embedding_service: OpenAIEmbeddingService::new(env),
             snap_service,
+            file_exists_service: FileExistService,
             _marker: Default::default(),
         }
     }
@@ -45,6 +48,7 @@ impl ForgeInfra<UnResolved> {
             information_repo: self.information_repo,
             embedding_service: self.embedding_service,
             snap_service,
+            file_exists_service: FileExistService,
             _marker: Default::default(),
         }
     }
@@ -61,6 +65,7 @@ impl Infrastructure for ForgeInfra<Resolved> {
     type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = OpenAIEmbeddingService;
     type FileSnapshotService = FileSnapshotServiceImpl;
+    type FileExist = FileExistService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -84,5 +89,9 @@ impl Infrastructure for ForgeInfra<Resolved> {
 
     fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
         &self.snap_service
+    }
+
+    fn file_exist_service(&self) -> &Self::FileExist {
+        &self.file_exists_service
     }
 }
