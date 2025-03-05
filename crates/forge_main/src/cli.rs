@@ -71,16 +71,12 @@ pub enum SnapshotCommand {
         path: PathBuf,
 
         /// Restore by timestamp
-        #[arg(long)]
+        #[arg(long, short)]
         timestamp: Option<u64>,
 
         /// Restore by index
-        #[arg(long)]
+        #[arg(long, short)]
         index: Option<usize>,
-
-        /// Restore the previous version
-        #[arg(long)]
-        previous: bool,
     },
 
     /// Show differences between versions of a file
@@ -92,15 +88,15 @@ pub enum SnapshotCommand {
         #[arg(long)]
         timestamp: Option<u64>,
 
-        /// Show diff with the previous version
-        #[arg(long)]
-        previous: bool,
+        /// Restore by index
+        #[arg(long, short)]
+        index: Option<usize>,
     },
 
     /// Purge old snapshots
     Purge {
-        /// Remove snapshots older than a specific number of days (default: 30)
-        #[arg(long, default_value_t = 30)]
+        /// Remove snapshots older than a specific number of days (default: 0)
+        #[arg(long, default_value_t = 0)]
         older_than: u32,
     },
 }

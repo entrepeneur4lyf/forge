@@ -129,7 +129,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
         let snapshot_dir = self.get_file_snapshot_dir(file_path).await?;
         let snapshot_filename = self.create_snapshot_filename(timestamp);
         let snapshot_path = snapshot_dir.join(&snapshot_filename);
-        
+
         // ForgeFS::write the snapshot
         ForgeFS::write(&snapshot_path, &content)
             .await
@@ -178,7 +178,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
         Ok(())
     }
 
-    async fn restore_by_index(&self, file_path: &Path, index: usize) -> Result<()> {
+    async fn restore_by_index(&self, file_path: &Path, index: isize) -> Result<()> {
         let snapshot_metadata = self.get_snapshot_by_index(file_path, index).await?;
 
         // ForgeFS::write the content back to the original file
@@ -187,6 +187,10 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
             .with_context(|| format!("Failed to restore file: {:?}", file_path))?;
 
         Ok(())
+    }
+
+    async fn restore_previous(&self, file_path: &Path) -> Result<()> {
+        self.restore_by_index(file_path, -1).await
     }
 
     async fn get_snapshot_by_timestamp(
@@ -213,12 +217,8 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
             .position(|(t, _)| *t == timestamp)
             .unwrap_or(0);
 
-        let info = SnapshotInfo::with_timestamp(
-            timestamp,
-            file_path.to_path_buf(),
-            snapshot_path,
-            index,
-        );
+        let info =
+            SnapshotInfo::with_timestamp(timestamp, file_path.to_path_buf(), snapshot_path, index);
 
         Ok(SnapshotMetadata { info, content, path_hash: self.hash_path(file_path) })
     }
@@ -226,19 +226,25 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
     async fn get_snapshot_by_index(
         &self,
         file_path: &Path,
-        index: usize,
+        mut index: isize,
     ) -> Result<SnapshotMetadata> {
         let snapshots = self.get_sorted_snapshots(file_path).await?;
 
-        if index >= snapshots.len() {
+        if index == -1 {
+            index = (snapshots.len() - 1) as isize;
+        }
+
+        if index as usize >= snapshots.len() {
             anyhow::bail!(
                 "Snapshot index {} is out of bounds (max: {})",
                 index,
                 snapshots.len().saturating_sub(1)
             );
         }
+        
+        dbg!(index);
 
-        let (timestamp, _) = snapshots[index];
+        let (timestamp, _) = snapshots[index as usize];
         self.get_snapshot_by_timestamp(file_path, timestamp).await
     }
 
@@ -253,7 +259,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
         let mut removed_count = 0;
 
         // Iterate through all directories in the snapshot base dir
-        let entries = Walker::min_all()
+        let entries = Walker::max_all()
             .cwd(self.snapshot_base_dir.clone())
             .get()
             .await
@@ -265,30 +271,23 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
             })?;
 
         for entry in entries {
-            let path = PathBuf::from(&entry.path);
+            let snapshot_path = self.snapshot_base_dir.join(entry.path);
 
-            if path.is_dir() {
-                // This is a directory for a specific file's snapshots
-                let snapshots = Walker::min_all().cwd(path).get().await?;
+            if !snapshot_path.is_dir() {
+                if let Some(filename) = snapshot_path.file_name().and_then(|n| n.to_str()) {
+                    if let Some(timestamp) = self.get_timestamp_from_filename(filename) {
+                        // Remove if older than the cutoff
 
-                // Check each snapshot file in this directory
-                for snapshot_entry in snapshots {
-                    let snapshot_path = PathBuf::from(&snapshot_entry.path);
-
-                    if let Some(filename) = snapshot_path.file_name().and_then(|n| n.to_str()) {
-                        if let Some(timestamp) = self.get_timestamp_from_filename(filename) {
-                            // Remove if older than the cutoff
-                            if timestamp < cutoff {
-                                ForgeFS::remove_file(&snapshot_path)
-                                    .await
-                                    .with_context(|| {
-                                        format!(
-                                            "Failed to remove old snapshot: {:?}",
-                                            snapshot_path
-                                        )
-                                    })?;
-                                removed_count += 1;
-                            }
+                        if timestamp < cutoff {
+                            ForgeFS::remove_file(&snapshot_path)
+                                .await
+                                .with_context(|| {
+                                    format!(
+                                        "Failed to remove old snapshot: {:?}",
+                                        snapshot_path
+                                    )
+                                })?;
+                            removed_count += 1;
                         }
                     }
                 }
@@ -357,7 +356,7 @@ mod tests {
         assert_eq!(snapshots.len(), 2);
         assert_eq!(snapshots[0].index, 0);
         assert_eq!(snapshots[1].index, 1);
-        
+
         Ok(())
     }
 

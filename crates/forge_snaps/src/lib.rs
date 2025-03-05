@@ -103,12 +103,10 @@ pub trait FileSnapshotService {
     async fn restore_by_timestamp(&self, file_path: &Path, timestamp: u64) -> Result<()>;
 
     // Index-based restoration (0 = newest, 1 = previous version, etc.)
-    async fn restore_by_index(&self, file_path: &Path, index: usize) -> Result<()>;
+    async fn restore_by_index(&self, file_path: &Path, index: isize) -> Result<()>;
 
     // Convenient method to restore previous version
-    async fn restore_previous(&self, file_path: &Path) -> Result<()> {
-        self.restore_by_index(file_path, 1).await
-    }
+    async fn restore_previous(&self, file_path: &Path) -> Result<()>;
 
     // Metadata access
     async fn get_snapshot_by_timestamp(
@@ -119,7 +117,7 @@ pub trait FileSnapshotService {
     async fn get_snapshot_by_index(
         &self,
         file_path: &Path,
-        index: usize,
+        index: isize,
     ) -> Result<SnapshotMetadata>;
 
     // Global purge operation

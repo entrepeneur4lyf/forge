@@ -157,27 +157,58 @@ impl<F: API> UI<F> {
         Ok(())
     }
     async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
+        let snapshot_service = self.api.snap_service();
+
         match snapshot_command {
             SnapshotCommand::List { path } => {
-                let snapshot_service = self.api.snap_service();
                 let snapshots: Vec<SnapshotInfo> = snapshot_service.list_snapshots(path).await?;
+                if snapshots.is_empty() { 
+                    CONSOLE.writeln("There are no snapshots yet.")?;
+                    return Ok(());
+                }
                 for v in snapshots {
-                    CONSOLE.writeln(format!(
-                        "{}\n{}\n",
-                        v.timestamp,
-                        v.original_path.display(),
-                    ))?;
+                    CONSOLE
+                        .writeln(format!("{}\n{}\n", v.timestamp, v.original_path.display(),))?;
                 }
                 Ok(())
             }
-            SnapshotCommand::Restore { .. } => {
+            SnapshotCommand::Restore { timestamp, path, index } => {
+                if let Some(timestamp) = timestamp {
+                    snapshot_service
+                        .restore_by_timestamp(path, *timestamp)
+                        .await?;
+                    return Ok(());
+                }
+                if let Some(index) = index {
+                    snapshot_service
+                        .restore_by_index(path, *index as isize)
+                        .await?;
+                    return Ok(());
+                }
+
+                snapshot_service.restore_previous(path).await?;
+                Ok(())
+            }
+            SnapshotCommand::Diff { path, timestamp, index } => {
+                let metadata = if let Some(timestamp) = timestamp {
+                    snapshot_service
+                        .get_snapshot_by_timestamp(path, *timestamp)
+                        .await?
+                } else if let Some(index) = index {
+                    snapshot_service
+                        .get_snapshot_by_index(path, *index as isize)
+                        .await?
+                } else {
+                    snapshot_service.get_snapshot_by_index(path, -1).await?
+                };
+                let _prev_content = String::from_utf8_lossy(&metadata.content).to_string();
                 todo!()
             }
-            SnapshotCommand::Diff { .. } => {
-                todo!()
-            }
-            SnapshotCommand::Purge { .. } => {
-                todo!()
+            SnapshotCommand::Purge { older_than } => {
+                let count = snapshot_service.purge_older_than(*older_than).await?;
+                CONSOLE.writeln(format!("Deleted {} snapshots.", count))?;
+
+                Ok(())
             }
         }
     }
