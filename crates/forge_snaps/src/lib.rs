@@ -1,6 +1,7 @@
-use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use anyhow::Result;
 
 /// Represents information about a file snapshot
 ///
@@ -20,22 +21,13 @@ pub struct SnapshotInfo {
 
 impl SnapshotInfo {
     /// Creates a new SnapshotInfo instance
-    pub fn new(
-        original_path: PathBuf,
-        snapshot_path: PathBuf,
-        index: usize,
-    ) -> Self {
+    pub fn new(original_path: PathBuf, snapshot_path: PathBuf, index: usize) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
             .as_secs();
 
-        Self {
-            timestamp,
-            original_path,
-            snapshot_path,
-            index,
-        }
+        Self { timestamp, original_path, snapshot_path, index }
     }
 
     /// Creates a SnapshotInfo with a specific timestamp
@@ -45,12 +37,7 @@ impl SnapshotInfo {
         snapshot_path: PathBuf,
         index: usize,
     ) -> Self {
-        Self {
-            timestamp,
-            original_path,
-            snapshot_path,
-            index,
-        }
+        Self { timestamp, original_path, snapshot_path, index }
     }
 
     /// Returns a formatted date string for the snapshot's timestamp
@@ -60,7 +47,7 @@ impl SnapshotInfo {
         format!("{}", self.timestamp)
     }
 
-/*    /// Returns a human-readable size string (e.g., "2.4K")
+    /*    /// Returns a human-readable size string (e.g., "2.4K")
     pub fn formatted_size(&self) -> String {
         if self.size < 1024 {
             format!("{}B", self.size)

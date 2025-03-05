@@ -42,6 +42,7 @@ mod tests {
     use bytes::Bytes;
     use forge_domain::{Environment, Point, Query, Suggestion};
     use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
+
     use super::*;
     use crate::{EmbeddingService, FileExist, FileReadService, FileWriteService, VectorIndex};
 
@@ -108,7 +109,7 @@ mod tests {
             unimplemented!()
         }
     }
-    
+
     #[async_trait::async_trait]
     impl FileSnapshotService for Stub {
         fn snapshot_dir(&self) -> PathBuf {
@@ -135,11 +136,19 @@ mod tests {
             todo!()
         }
 
-        async fn get_snapshot_by_timestamp(&self, _: &Path, _: u64) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_timestamp(
+            &self,
+            _: &Path,
+            _: u64,
+        ) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 
-        async fn get_snapshot_by_index(&self, _: &Path, _: isize) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_index(
+            &self,
+            _: &Path,
+            _: isize,
+        ) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 
@@ -147,7 +156,7 @@ mod tests {
             todo!()
         }
     }
-    
+
     #[async_trait::async_trait]
     impl FileExist for Stub {
         async fn exist(&self, _: &Path) -> anyhow::Result<bool> {

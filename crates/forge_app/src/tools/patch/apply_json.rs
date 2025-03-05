@@ -1,10 +1,7 @@
-use bytes::Bytes;
 use std::path::Path;
 use std::sync::Arc;
-// No longer using dissimilar for fuzzy matching
-use crate::tools::syn;
-use crate::tools::utils::assert_absolute_path;
-use crate::{FileWriteService, Infrastructure};
+
+use bytes::Bytes;
 use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -13,6 +10,11 @@ use serde::{Deserialize, Serialize};
 use strum_macros::AsRefStr;
 use thiserror::Error;
 use tokio::fs;
+
+// No longer using dissimilar for fuzzy matching
+use crate::tools::syn;
+use crate::tools::utils::assert_absolute_path;
+use crate::{FileWriteService, Infrastructure};
 
 // Removed fuzzy matching threshold as we only use exact matching now
 
@@ -275,7 +277,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
             .file_write_service()
             .write(path, Bytes::from(current_content.clone()))
             .await
-            .map_err(|v| Error::FileOperation(std::io::Error::new(std::io::ErrorKind::Other, v)))?;
+            .map_err(|v| Error::FileOperation(std::io::Error::other(v)))?;
 
         // Check for syntax errors
         let warning = syn::validate(path, &current_content).map(|e| e.to_string());

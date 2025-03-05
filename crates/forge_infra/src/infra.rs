@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
+use forge_app::{EnvironmentService, Infrastructure};
+use forge_snaps::FileSnapshotServiceImpl;
+
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;
 use crate::file_exists::FileExistService;
 use crate::file_read::ForgeFileReadService;
 use crate::file_write::ForgeFileWriteService;
 use crate::qdrant::QdrantVectorIndex;
-use forge_app::{EnvironmentService, Infrastructure};
-use forge_snaps::FileSnapshotServiceImpl;
-use std::sync::Arc;
 
 pub struct Resolved;
 pub struct UnResolved;

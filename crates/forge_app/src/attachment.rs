@@ -64,15 +64,16 @@ pub mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex};
 
+    use base64::Engine;
+    use bytes::Bytes;
+    use forge_domain::{AttachmentService, ContentType, Environment, Point, Query, Suggestion};
+    use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
+
     use crate::attachment::ForgeChatRequest;
     use crate::{
         EmbeddingService, EnvironmentService, FileExist, FileReadService, FileWriteService,
         Infrastructure, VectorIndex,
     };
-    use base64::Engine;
-    use bytes::Bytes;
-    use forge_domain::{AttachmentService, ContentType, Environment, Point, Query, Suggestion};
-    use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
     #[derive(Debug)]
     pub struct MockEnvironmentService {}
 
@@ -133,7 +134,7 @@ pub mod tests {
         async fn read(&self, path: &Path) -> anyhow::Result<Bytes> {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
-                Some((_, content)) => Ok(Bytes::from(content.clone())),
+                Some((_, content)) => Ok(content.clone()),
                 None => Err(anyhow::anyhow!("File not found: {:?}", path)),
             }
         }

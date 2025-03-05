@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
+use forge_domain::App;
+
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
-use forge_domain::App;
 
 /// ForgeApp is the main application container that implements the App trait.
 /// It provides access to all core services required by the application.
@@ -95,7 +96,7 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     }
 
     fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
-        &self.infra.file_snapshot_service()
+        self.infra.file_snapshot_service()
     }
 
     fn file_exist_service(&self) -> &Self::FileExist {

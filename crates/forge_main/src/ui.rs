@@ -1,11 +1,5 @@
 use std::sync::Arc;
 
-use crate::banner;
-use crate::cli::{Cli, Snapshot, SnapshotCommand};
-use crate::console::CONSOLE;
-use crate::info::Info;
-use crate::input::{Console, PromptInput};
-use crate::model::{Command, UserInput};
 use anyhow::Result;
 use colored::Colorize;
 use forge_api::{
@@ -16,6 +10,13 @@ use forge_snaps::SnapshotInfo;
 use forge_tracker::EventKind;
 use lazy_static::lazy_static;
 use tokio_stream::StreamExt;
+
+use crate::banner;
+use crate::cli::{Cli, Snapshot, SnapshotCommand};
+use crate::console::CONSOLE;
+use crate::info::Info;
+use crate::input::{Console, PromptInput};
+use crate::model::{Command, UserInput};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -162,7 +163,7 @@ impl<F: API> UI<F> {
         match snapshot_command {
             SnapshotCommand::List { path } => {
                 let snapshots: Vec<SnapshotInfo> = snapshot_service.list_snapshots(path).await?;
-                if snapshots.is_empty() { 
+                if snapshots.is_empty() {
                     CONSOLE.writeln("There are no snapshots yet.")?;
                     return Ok(());
                 }

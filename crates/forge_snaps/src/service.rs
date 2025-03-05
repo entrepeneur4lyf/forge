@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use forge_fs::ForgeFS;
 use forge_walker::Walker;
 use sha2::{Digest, Sha256};
+
+use crate::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
 
 /// Implementation of `FileSnapshotService` that provides snapshot
 /// functionality for files with retention policies.
@@ -64,7 +65,8 @@ impl FileSnapshotServiceImpl {
         }
     }
 
-    /// Retrieves all snapshot files for a given file, sorted by timestamp (newest first)
+    /// Retrieves all snapshot files for a given file, sorted by timestamp
+    /// (newest first)
     async fn get_sorted_snapshots(&self, file_path: &Path) -> Result<Vec<(u64, PathBuf)>> {
         let snapshot_dir = self.get_file_snapshot_dir(file_path).await?;
         let mut snapshots = Vec::new();
@@ -241,7 +243,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
                 snapshots.len().saturating_sub(1)
             );
         }
-        
+
         dbg!(index);
 
         let (timestamp, _) = snapshots[index as usize];
@@ -282,10 +284,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
                             ForgeFS::remove_file(&snapshot_path)
                                 .await
                                 .with_context(|| {
-                                    format!(
-                                        "Failed to remove old snapshot: {:?}",
-                                        snapshot_path
-                                    )
+                                    format!("Failed to remove old snapshot: {:?}", snapshot_path)
                                 })?;
                             removed_count += 1;
                         }
@@ -300,10 +299,11 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::tempdir;
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_create_snapshot() -> Result<()> {

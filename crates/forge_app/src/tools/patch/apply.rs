@@ -1,8 +1,6 @@
-use super::marker::{DIVIDER, REPLACE, SEARCH};
-use super::parse::{self, PatchBlock};
-use crate::tools::syn;
-use crate::tools::utils::assert_absolute_path;
-use crate::{FileExist, FileReadService, FileWriteService, Infrastructure};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use anyhow::bail;
 use bytes::Bytes;
 use dissimilar::Chunk;
@@ -10,9 +8,13 @@ use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use thiserror::Error;
+
+use super::marker::{DIVIDER, REPLACE, SEARCH};
+use super::parse::{self, PatchBlock};
+use crate::tools::syn;
+use crate::tools::utils::assert_absolute_path;
+use crate::{FileExist, FileReadService, FileWriteService, Infrastructure};
 
 #[derive(Debug, Error)]
 enum Error {
@@ -174,7 +176,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatch<F> {
             let modified = apply_patches(old_content.clone(), blocks).await?;
             self.0.file_write_service().write(Path::new(&input.path), Bytes::from(modified.clone()))
                 .await
-                .map_err(|v| Error::FileOperation(std::io::Error::new(std::io::ErrorKind::Other, v)))?;
+                .map_err(|v| Error::FileOperation(std::io::Error::other(v)))?;
 
             let syntax_warning = syn::validate(&input.path, &modified);
 
@@ -215,10 +217,11 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatch<F> {
 
 #[cfg(test)]
 mod test {
+    use std::io::{Error as IoError, ErrorKind as IoErrorKind};
+
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
-    use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
     async fn write_test_file(
         path: impl AsRef<Path>,
