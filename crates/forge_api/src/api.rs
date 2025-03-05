@@ -7,6 +7,7 @@ use forge_domain::*;
 use forge_infra::{ForgeInfra, Resolved};
 use forge_snaps::{FileSnapshotService, FileSnapshotServiceImpl};
 use forge_stream::MpscStream;
+use serde_json::Value;
 
 use crate::executor::ForgeExecutorService;
 use crate::loader::ForgeLoaderService;
@@ -84,6 +85,29 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>> {
         self.app.conversation_service().get(conversation_id).await
+    }
+
+    async fn get_variable(
+        &self,
+        conversation_id: &ConversationId,
+        key: &str,
+    ) -> anyhow::Result<Option<Value>> {
+        self.app
+            .conversation_service()
+            .get_variable(conversation_id, key)
+            .await
+    }
+
+    async fn set_variable(
+        &self,
+        conversation_id: &ConversationId,
+        key: String,
+        value: Value,
+    ) -> anyhow::Result<()> {
+        self.app
+            .conversation_service()
+            .set_variable(conversation_id, key, value)
+            .await
     }
 
     fn snap_service(&self) -> Arc<dyn FileSnapshotService> {
