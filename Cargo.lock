@@ -927,6 +927,7 @@ dependencies = [
  "derive_setters",
  "forge_api",
  "forge_display",
+ "forge_fs",
  "forge_snaps",
  "forge_tracker",
  "forge_walker",
@@ -938,9 +939,6 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-stream",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]

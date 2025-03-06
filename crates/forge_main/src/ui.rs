@@ -184,50 +184,169 @@ impl<F: API> UI<F> {
             SnapshotCommand::List { path } => {
                 let snapshots: Vec<SnapshotInfo> = snapshot_service.list_snapshots(path).await?;
                 if snapshots.is_empty() {
-                    CONSOLE.writeln("There are no snapshots yet.")?;
+                    CONSOLE.writeln(
+                        TitleFormat::failed("Snapshots")
+                            .sub_title("No snapshots found")
+                            .format(),
+                    )?;
                     return Ok(());
                 }
-                for v in snapshots {
-                    CONSOLE
-                        .writeln(format!("{}\n{}\n", v.timestamp, v.original_path.display(),))?;
+
+                CONSOLE.writeln(
+                    TitleFormat::success(format!("Found {} snapshots", snapshots.len())).format(),
+                )?;
+                CONSOLE.newline()?;
+
+                for (i, snap) in snapshots.iter().enumerate() {
+                    // Create a title with the index and timestamp
+                    CONSOLE.writeln(
+                        TitleFormat::execute(format!("Snapshot #{}", i))
+                            .sub_title(format!("timestamp: {}", snap.timestamp))
+                            .format(),
+                    )?;
+
+                    // Display original path and snapshot path with proper formatting
+                    CONSOLE.writeln(format!(
+                        "{}: {}",
+                        "Original Path".bold(),
+                        snap.original_path.display()
+                    ))?;
+                    CONSOLE.writeln(format!(
+                        "{}: {}",
+                        "Snapshot Timestamp".bold(),
+                        snap.timestamp
+                    ))?;
+                    CONSOLE.writeln(format!("{}: {}", "Index".bold(), snap.index))?;
+                    CONSOLE.writeln(format!(
+                        "{}: {}",
+                        "Snapshot Path".bold(),
+                        snap.snapshot_path.display()
+                    ))?;
+
+                    // Add a separator between snapshots
+                    if i < snapshots.len() - 1 {
+                        CONSOLE.writeln("---".dimmed().to_string())?;
+                    }
                 }
                 Ok(())
             }
             SnapshotCommand::Restore { timestamp, path, index } => {
+                let result_title = TitleFormat::execute("Snapshot Restore");
+
                 if let Some(timestamp) = timestamp {
+                    CONSOLE.writeln(
+                        result_title
+                            .sub_title(format!("restoring by timestamp: {}", timestamp))
+                            .format(),
+                    )?;
+
                     snapshot_service
                         .restore_by_timestamp(path, &timestamp.to_string())
                         .await?;
-                    return Ok(());
-                }
-                if let Some(index) = index {
-                    snapshot_service
-                        .restore_by_index(path, *index as isize)
-                        .await?;
+
+                    CONSOLE.writeln(
+                        TitleFormat::success("Restore Complete")
+                            .sub_title(format!("path: {}", path.display()))
+                            .format(),
+                    )?;
                     return Ok(());
                 }
 
+                if let Some(index) = index {
+                    CONSOLE.writeln(
+                        result_title
+                            .sub_title(format!("restoring by index: {}", index))
+                            .format(),
+                    )?;
+
+                    snapshot_service
+                        .restore_by_index(path, *index as isize)
+                        .await?;
+
+                    CONSOLE.writeln(
+                        TitleFormat::success("Restore Complete")
+                            .sub_title(format!("path: {}", path.display()))
+                            .format(),
+                    )?;
+                    return Ok(());
+                }
+
+                CONSOLE.writeln(
+                    result_title
+                        .sub_title("restoring previous version")
+                        .format(),
+                )?;
+
                 snapshot_service.restore_previous(path).await?;
+
+                CONSOLE.writeln(
+                    TitleFormat::success("Restore Complete")
+                        .sub_title(format!("path: {}", path.display()))
+                        .format(),
+                )?;
                 Ok(())
             }
             SnapshotCommand::Diff { path, timestamp, index } => {
                 let metadata = if let Some(timestamp) = timestamp {
+                    CONSOLE.writeln(
+                        TitleFormat::execute("Snapshot Diff")
+                            .sub_title(format!("comparing with timestamp: {}", timestamp))
+                            .format(),
+                    )?;
+
                     snapshot_service
                         .get_snapshot_by_timestamp(path, &timestamp.to_string())
                         .await?
                 } else if let Some(index) = index {
+                    CONSOLE.writeln(
+                        TitleFormat::execute("Snapshot Diff")
+                            .sub_title(format!("comparing with index: {}", index))
+                            .format(),
+                    )?;
+
                     snapshot_service
                         .get_snapshot_by_index(path, *index as isize)
                         .await?
                 } else {
+                    CONSOLE.writeln(
+                        TitleFormat::execute("Snapshot Diff")
+                            .sub_title("comparing with previous version")
+                            .format(),
+                    )?;
+
                     snapshot_service.get_snapshot_by_index(path, -1).await?
                 };
-                let _prev_content = String::from_utf8_lossy(&metadata.content).to_string();
-                todo!()
+
+                let prev_content = String::from_utf8_lossy(&metadata.content).to_string();
+                let cur_content = String::from_utf8(forge_fs::ForgeFS::read(path).await?)?;
+                let diff = forge_display::DiffFormat::format(
+                    "diff",
+                    path.to_path_buf(),
+                    &prev_content,
+                    &cur_content,
+                );
+
+                CONSOLE.writeln(diff)?;
+
+                Ok(())
             }
             SnapshotCommand::Purge { older_than } => {
+                let mut title = TitleFormat::execute("Purging Snapshots");
+                if *older_than == 0 {
+                    title = title.sub_title("of all time.".to_string());
+                } else {
+                    title = title.sub_title(format!("older than {} days", older_than));
+                }
+
+                CONSOLE.writeln(title.format())?;
+
                 let count = snapshot_service.purge_older_than(*older_than).await?;
-                CONSOLE.writeln(format!("Deleted {} snapshots.", count))?;
+
+                CONSOLE.writeln(
+                    TitleFormat::success("Purge Complete")
+                        .sub_title(format!("deleted {} snapshots", count))
+                        .format(),
+                )?;
 
                 Ok(())
             }
