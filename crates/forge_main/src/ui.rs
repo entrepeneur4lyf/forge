@@ -218,7 +218,7 @@ impl<F: API> UI<F> {
                     ))?;
                     CONSOLE.writeln(format!("{}: {}", "Index".bold(), snap.index))?;
                     CONSOLE.writeln(format!(
-                        "{}: {}",
+                        "{}: '{}'",
                         "Snapshot Path".bold(),
                         snap.snapshot_path.display()
                     ))?;
