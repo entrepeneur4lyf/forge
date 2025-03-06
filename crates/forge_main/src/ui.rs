@@ -196,7 +196,7 @@ impl<F: API> UI<F> {
             SnapshotCommand::Restore { timestamp, path, index } => {
                 if let Some(timestamp) = timestamp {
                     snapshot_service
-                        .restore_by_timestamp(path, *timestamp)
+                        .restore_by_timestamp(path, &timestamp.to_string())
                         .await?;
                     return Ok(());
                 }
@@ -213,7 +213,7 @@ impl<F: API> UI<F> {
             SnapshotCommand::Diff { path, timestamp, index } => {
                 let metadata = if let Some(timestamp) = timestamp {
                     snapshot_service
-                        .get_snapshot_by_timestamp(path, *timestamp)
+                        .get_snapshot_by_timestamp(path, &timestamp.to_string())
                         .await?
                 } else if let Some(index) = index {
                     snapshot_service

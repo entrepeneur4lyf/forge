@@ -124,7 +124,7 @@ mod tests {
             todo!()
         }
 
-        async fn restore_by_timestamp(&self, _: &Path, _: u64) -> anyhow::Result<()> {
+        async fn restore_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<()> {
             todo!()
         }
 
@@ -136,11 +136,7 @@ mod tests {
             todo!()
         }
 
-        async fn get_snapshot_by_timestamp(
-            &self,
-            _: &Path,
-            _: u64,
-        ) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 

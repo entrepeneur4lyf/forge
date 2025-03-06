@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
 
@@ -10,7 +9,7 @@ use anyhow::Result;
 #[derive(Debug, Clone)]
 pub struct SnapshotInfo {
     /// Unix timestamp when the snapshot was created
-    pub timestamp: u64,
+    pub timestamp: String,
     /// Original file path that was snapshotted
     pub original_path: PathBuf,
     /// Path to the snapshot file
@@ -20,19 +19,9 @@ pub struct SnapshotInfo {
 }
 
 impl SnapshotInfo {
-    /// Creates a new SnapshotInfo instance
-    pub fn new(original_path: PathBuf, snapshot_path: PathBuf, index: usize) -> Self {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs();
-
-        Self { timestamp, original_path, snapshot_path, index }
-    }
-
     /// Creates a SnapshotInfo with a specific timestamp
     pub fn with_timestamp(
-        timestamp: u64,
+        timestamp: String,
         original_path: PathBuf,
         snapshot_path: PathBuf,
         index: usize,
@@ -87,7 +76,7 @@ pub trait FileSnapshotService {
     async fn list_snapshots(&self, file_path: &Path) -> Result<Vec<SnapshotInfo>>;
 
     // Timestamp-based restoration
-    async fn restore_by_timestamp(&self, file_path: &Path, timestamp: u64) -> Result<()>;
+    async fn restore_by_timestamp(&self, file_path: &Path, timestamp: &str) -> Result<()>;
 
     // Index-based restoration (0 = newest, 1 = previous version, etc.)
     async fn restore_by_index(&self, file_path: &Path, index: isize) -> Result<()>;
@@ -99,7 +88,7 @@ pub trait FileSnapshotService {
     async fn get_snapshot_by_timestamp(
         &self,
         file_path: &Path,
-        timestamp: u64,
+        timestamp: &str,
     ) -> Result<SnapshotMetadata>;
     async fn get_snapshot_by_index(
         &self,

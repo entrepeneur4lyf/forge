@@ -220,7 +220,7 @@ pub mod tests {
             todo!()
         }
 
-        async fn restore_by_timestamp(&self, _: &Path, _: u64) -> anyhow::Result<()> {
+        async fn restore_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<()> {
             todo!()
         }
 
@@ -232,19 +232,11 @@ pub mod tests {
             todo!()
         }
 
-        async fn get_snapshot_by_timestamp(
-            &self,
-            _: &Path,
-            _: u64,
-        ) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 
-        async fn get_snapshot_by_index(
-            &self,
-            _: &Path,
-            _: isize,
-        ) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_index(&self, _: &Path, _: isize) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 

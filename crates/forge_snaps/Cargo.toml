@@ -6,9 +6,9 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.97"
 async-trait = "0.1.87"
-sha2 = "0.10.8"
 forge_fs = { path = "../forge_fs" }
 forge_walker = { path = "../forge_walker" }
+blake3 = "1.6.1"
 
 [dev-dependencies]
 tempfile = "3.17.1"

@@ -5,7 +5,6 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use forge_fs::ForgeFS;
 use forge_walker::Walker;
-use sha2::{Digest, Sha256};
 
 use crate::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
 
@@ -31,9 +30,9 @@ impl FileSnapshotServiceImpl {
     /// Calculates a SHA-256 hash of the file path for storage organization
     fn hash_path(&self, file_path: &Path) -> String {
         let path_str = file_path.to_string_lossy().to_string();
-        let mut hasher = Sha256::new();
+        let mut hasher = blake3::Hasher::new();
         hasher.update(path_str.as_bytes());
-        format!("{:x}", hasher.finalize())
+        hasher.finalize().to_hex().to_string()
     }
 
     /// Gets the directory for a specific file's snapshots
@@ -52,14 +51,14 @@ impl FileSnapshotServiceImpl {
     }
 
     /// Creates a snapshot filename based on the timestamp
-    fn create_snapshot_filename(&self, timestamp: u64) -> String {
+    fn create_snapshot_filename(&self, timestamp: &str) -> String {
         format!("{}.snap", timestamp)
     }
 
     /// Gets the timestamp from a snapshot filename
-    fn get_timestamp_from_filename(&self, filename: &str) -> Option<u64> {
+    fn get_timestamp_from_filename(&self, filename: &str) -> Option<u128> {
         if let Some(name) = filename.strip_suffix(".snap") {
-            name.parse::<u64>().ok()
+            name.parse().ok()
         } else {
             None
         }
@@ -67,14 +66,14 @@ impl FileSnapshotServiceImpl {
 
     /// Retrieves all snapshot files for a given file, sorted by timestamp
     /// (newest first)
-    async fn get_sorted_snapshots(&self, file_path: &Path) -> Result<Vec<(u64, PathBuf)>> {
+    async fn get_sorted_snapshots(&self, file_path: &Path) -> Result<Vec<(u128, PathBuf)>> {
         let snapshot_dir = self.get_file_snapshot_dir(file_path).await?;
         let mut snapshots = Vec::new();
 
-        let entries = Walker::min_all().cwd(snapshot_dir).get().await?;
+        let entries = Walker::min_all().cwd(snapshot_dir.clone()).get().await?;
 
         for entry in entries {
-            let path = PathBuf::from(entry.path);
+            let path = snapshot_dir.join(entry.path);
             if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
                 if let Some(timestamp) = self.get_timestamp_from_filename(filename) {
                     snapshots.push((timestamp, path));
@@ -125,11 +124,12 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
-            .as_secs();
+            .as_millis()
+            .to_string();
 
         // Get the snapshot directory and create it if needed
         let snapshot_dir = self.get_file_snapshot_dir(file_path).await?;
-        let snapshot_filename = self.create_snapshot_filename(timestamp);
+        let snapshot_filename = self.create_snapshot_filename(&timestamp);
         let snapshot_path = snapshot_dir.join(&snapshot_filename);
 
         // ForgeFS::write the snapshot
@@ -157,7 +157,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
 
         for (index, (timestamp, path)) in snapshots.iter().enumerate() {
             let snapshot_info = SnapshotInfo::with_timestamp(
-                *timestamp,
+                timestamp.to_string(),
                 file_path.to_path_buf(),
                 path.clone(),
                 index,
@@ -169,7 +169,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
         Ok(result)
     }
 
-    async fn restore_by_timestamp(&self, file_path: &Path, timestamp: u64) -> Result<()> {
+    async fn restore_by_timestamp(&self, file_path: &Path, timestamp: &str) -> Result<()> {
         let snapshot_metadata = self.get_snapshot_by_timestamp(file_path, timestamp).await?;
 
         // ForgeFS::write the content back to the original file
@@ -198,7 +198,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
     async fn get_snapshot_by_timestamp(
         &self,
         file_path: &Path,
-        timestamp: u64,
+        timestamp: &str,
     ) -> Result<SnapshotMetadata> {
         let snapshot_dir = self.get_file_snapshot_dir(file_path).await?;
         let snapshot_filename = self.create_snapshot_filename(timestamp);
@@ -216,11 +216,15 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
         let snapshots = self.get_sorted_snapshots(file_path).await?;
         let index = snapshots
             .iter()
-            .position(|(t, _)| *t == timestamp)
+            .position(|(t, _)| t.to_string() == timestamp)
             .unwrap_or(0);
 
-        let info =
-            SnapshotInfo::with_timestamp(timestamp, file_path.to_path_buf(), snapshot_path, index);
+        let info = SnapshotInfo::with_timestamp(
+            timestamp.to_string(),
+            file_path.to_path_buf(),
+            snapshot_path,
+            index,
+        );
 
         Ok(SnapshotMetadata { info, content, path_hash: self.hash_path(file_path) })
     }
@@ -247,7 +251,8 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
         dbg!(index);
 
         let (timestamp, _) = snapshots[index as usize];
-        self.get_snapshot_by_timestamp(file_path, timestamp).await
+        self.get_snapshot_by_timestamp(file_path, &timestamp.to_string())
+            .await
     }
 
     async fn purge_older_than(&self, days: u32) -> Result<usize> {
@@ -256,7 +261,7 @@ impl FileSnapshotService for FileSnapshotServiceImpl {
             .expect("Time went backwards")
             .checked_sub(Duration::from_secs(days as u64 * 24 * 60 * 60))
             .unwrap_or(Duration::from_secs(0))
-            .as_secs();
+            .as_millis();
 
         let mut removed_count = 0;
 
@@ -342,6 +347,9 @@ mod tests {
         // Create multiple snapshots
         let _snapshot1 = service.create_snapshot(&test_file_path).await?;
 
+        // Sleep for some time to avoid having same name for snapshot
+        tokio::time::sleep(Duration::from_millis(10)).await;
+
         // Modify file
         let mut file = File::create(&test_file_path).await?;
         file.write_all(b"modified content").await?;
@@ -381,7 +389,7 @@ mod tests {
         file.flush().await?;
 
         // Restore to the original content
-        service.restore_by_index(&test_file_path, 1).await?;
+        service.restore_by_index(&test_file_path, 0).await?;
 
         // Verify the file has been restored
         let content = tokio::fs::read_to_string(&test_file_path).await?;
