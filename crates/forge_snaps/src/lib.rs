@@ -33,7 +33,7 @@ impl SnapshotInfo {
     pub fn formatted_date(&self) -> String {
         // In a real implementation, this would convert the Unix timestamp
         // to a human-readable date string
-        format!("{}", self.timestamp)
+        self.timestamp.to_string()
     }
 
     /*    /// Returns a human-readable size string (e.g., "2.4K")

@@ -136,7 +136,11 @@ mod tests {
             todo!()
         }
 
-        async fn get_snapshot_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_timestamp(
+            &self,
+            _: &Path,
+            _: &str,
+        ) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 

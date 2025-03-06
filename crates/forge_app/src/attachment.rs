@@ -232,11 +232,19 @@ pub mod tests {
             todo!()
         }
 
-        async fn get_snapshot_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_timestamp(
+            &self,
+            _: &Path,
+            _: &str,
+        ) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 
-        async fn get_snapshot_by_index(&self, _: &Path, _: isize) -> anyhow::Result<SnapshotMetadata> {
+        async fn get_snapshot_by_index(
+            &self,
+            _: &Path,
+            _: isize,
+        ) -> anyhow::Result<SnapshotMetadata> {
             todo!()
         }
 
