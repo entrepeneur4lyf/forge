@@ -40,7 +40,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{Environment, Point, Query, Suggestion};
+    use forge_domain::{Environment, Point, Provider, Query, Suggestion};
     use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
 
     use super::*;
@@ -62,9 +62,8 @@ mod tests {
                 qdrant_key: Default::default(),
                 qdrant_cluster: Default::default(),
                 pid: std::process::id(),
-                provider_url: Default::default(),
-                provider_key: Default::default(),
                 openai_key: Default::default(),
+                provider: Provider::anthropic("test-key"),
             },
         }
     }
