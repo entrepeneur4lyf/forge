@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-
 /// Represents information about a file snapshot
 ///
 /// Contains details about when the snapshot was created,

@@ -55,7 +55,9 @@ impl FileSnapshotService for ForgeFileSnapshotService {
         file_path: &Path,
         timestamp: &str,
     ) -> Result<SnapshotMetadata> {
-        self.inner.get_snapshot_by_timestamp(file_path, timestamp).await
+        self.inner
+            .get_snapshot_by_timestamp(file_path, timestamp)
+            .await
     }
     async fn get_snapshot_by_index(
         &self,
