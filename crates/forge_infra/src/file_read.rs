@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use bytes::Bytes;
 use forge_app::FileReadService;
 

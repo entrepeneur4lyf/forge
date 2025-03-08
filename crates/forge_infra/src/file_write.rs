@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use bytes::Bytes;
 use forge_app::FileWriteService;
 use forge_snaps::{FileSnapshotService, SnapshotService};
