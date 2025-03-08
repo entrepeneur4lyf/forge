@@ -114,27 +114,27 @@ mod tests {
     #[async_trait::async_trait]
     impl FileSnapshotService for Stub {
         fn snapshot_dir(&self) -> PathBuf {
-            todo!()
+            unimplemented!()
         }
 
         async fn create_snapshot(&self, _: &Path) -> anyhow::Result<SnapshotInfo> {
-            todo!()
+            unimplemented!()
         }
 
         async fn list_snapshots(&self, _: &Path) -> anyhow::Result<Vec<SnapshotInfo>> {
-            todo!()
+            unimplemented!()
         }
 
         async fn restore_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<()> {
-            todo!()
+            unimplemented!()
         }
 
         async fn restore_by_index(&self, _: &Path, _: isize) -> anyhow::Result<()> {
-            todo!()
+            unimplemented!()
         }
 
         async fn restore_previous(&self, _: &Path) -> anyhow::Result<()> {
-            todo!()
+            unimplemented!()
         }
 
         async fn get_snapshot_by_timestamp(
@@ -142,7 +142,7 @@ mod tests {
             _: &Path,
             _: &str,
         ) -> anyhow::Result<SnapshotMetadata> {
-            todo!()
+            unimplemented!()
         }
 
         async fn get_snapshot_by_index(
@@ -150,18 +150,18 @@ mod tests {
             _: &Path,
             _: isize,
         ) -> anyhow::Result<SnapshotMetadata> {
-            todo!()
+            unimplemented!()
         }
 
         async fn purge_older_than(&self, _: u32) -> anyhow::Result<usize> {
-            todo!()
+            unimplemented!()
         }
     }
 
     #[async_trait::async_trait]
     impl FileMetaService for Stub {
         async fn is_file(&self, _: &Path) -> anyhow::Result<bool> {
-            todo!()
+            unimplemented!()
         }
     }
 
@@ -172,7 +172,6 @@ mod tests {
         type FileWriteService = Stub;
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
-        type FileSnapshotService = Stub;
         type FileMetaService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
@@ -195,12 +194,8 @@ mod tests {
             self
         }
 
-        fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
-            self
-        }
-
         fn file_meta_service(&self) -> &Self::FileMetaService {
-            todo!()
+            unimplemented!()
         }
     }
 

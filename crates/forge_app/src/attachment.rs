@@ -268,7 +268,6 @@ pub mod tests {
         type FileWriteService = MockFileService;
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
-        type FileSnapshotService = MockSnapService;
         type FileMetaService = MockFileService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
@@ -289,10 +288,6 @@ pub mod tests {
 
         fn embedding_service(&self) -> &Self::EmbeddingService {
             &self.embedding_service
-        }
-
-        fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
-            &self.file_snapshot_service
         }
 
         fn file_meta_service(&self) -> &Self::FileMetaService {

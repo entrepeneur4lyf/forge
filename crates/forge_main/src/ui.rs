@@ -178,11 +178,10 @@ impl<F: API> UI<F> {
         Ok(())
     }
     async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
-        let snapshot_service = self.api.snap_service();
 
         match snapshot_command {
             SnapshotCommand::List { path } => {
-                let snapshots: Vec<SnapshotInfo> = snapshot_service.list_snapshots(path).await?;
+                let snapshots: Vec<SnapshotInfo> = self.api.list_snapshots(path).await?;
                 if snapshots.is_empty() {
                     CONSOLE.writeln(
                         TitleFormat::failed("Snapshots")
@@ -240,7 +239,7 @@ impl<F: API> UI<F> {
                             .format(),
                     )?;
 
-                    snapshot_service
+                    self.api
                         .restore_by_timestamp(path, &timestamp.to_string())
                         .await?;
 
@@ -259,7 +258,7 @@ impl<F: API> UI<F> {
                             .format(),
                     )?;
 
-                    snapshot_service
+                    self.api
                         .restore_by_index(path, *index as isize)
                         .await?;
 
@@ -277,7 +276,7 @@ impl<F: API> UI<F> {
                         .format(),
                 )?;
 
-                snapshot_service.restore_previous(path).await?;
+                self.api.restore_previous(path).await?;
 
                 CONSOLE.writeln(
                     TitleFormat::success("Restore Complete")
@@ -294,7 +293,7 @@ impl<F: API> UI<F> {
                             .format(),
                     )?;
 
-                    snapshot_service
+                    self.api
                         .get_snapshot_by_timestamp(path, &timestamp.to_string())
                         .await?
                 } else if let Some(index) = index {
@@ -304,7 +303,7 @@ impl<F: API> UI<F> {
                             .format(),
                     )?;
 
-                    snapshot_service
+                    self.api
                         .get_snapshot_by_index(path, *index as isize)
                         .await?
                 } else {
@@ -314,7 +313,7 @@ impl<F: API> UI<F> {
                             .format(),
                     )?;
 
-                    snapshot_service.get_snapshot_by_index(path, -1).await?
+                    self.api.get_snapshot_by_index(path, -1).await?
                 };
 
                 let prev_content = String::from_utf8_lossy(&metadata.content).to_string();
@@ -340,7 +339,7 @@ impl<F: API> UI<F> {
 
                 CONSOLE.writeln(title.format())?;
 
-                let count = snapshot_service.purge_older_than(*older_than).await?;
+                let count = self.api.purge_older_than(*older_than).await?;
 
                 CONSOLE.writeln(
                     TitleFormat::success("Purge Complete")

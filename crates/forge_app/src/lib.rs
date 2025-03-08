@@ -11,7 +11,6 @@ use std::path::Path;
 pub use app::*;
 use bytes::Bytes;
 use forge_domain::{Point, Query, Suggestion};
-use forge_snaps::FileSnapshotService;
 
 /// Repository for accessing system environment information
 #[async_trait::async_trait]
@@ -62,7 +61,6 @@ pub trait Infrastructure: Send + Sync + 'static {
     type FileWriteService: FileWriteService;
     type VectorIndex: VectorIndex<Suggestion>;
     type EmbeddingService: EmbeddingService;
-    type FileSnapshotService: FileSnapshotService;
     type FileMetaService: FileMetaService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
@@ -70,6 +68,5 @@ pub trait Infrastructure: Send + Sync + 'static {
     fn file_write_service(&self) -> &Self::FileWriteService;
     fn vector_index(&self) -> &Self::VectorIndex;
     fn embedding_service(&self) -> &Self::EmbeddingService;
-    fn file_snapshot_service(&self) -> &Self::FileSnapshotService;
     fn file_meta_service(&self) -> &Self::FileMetaService;
 }

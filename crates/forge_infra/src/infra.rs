@@ -10,63 +10,40 @@ use crate::file_read::ForgeFileReadService;
 use crate::file_write::ForgeFileWriteService;
 use crate::qdrant::QdrantVectorIndex;
 
-pub struct Resolved;
-pub struct UnResolved;
-
-pub struct ForgeInfra<T> {
+pub struct ForgeInfra {
     file_read_service: ForgeFileReadService,
     file_write_service: ForgeFileWriteService,
     environment_service: ForgeEnvironmentService,
     information_repo: QdrantVectorIndex,
     embedding_service: OpenAIEmbeddingService,
     snap_service: Arc<SnapshotService>,
-    file_exists_service: ForgeFileMetaService,
-
-    _marker: std::marker::PhantomData<T>,
+    file_meta_service: ForgeFileMetaService,
 }
 
-impl ForgeInfra<UnResolved> {
+impl ForgeInfra {
     pub fn new(restricted: bool) -> Self {
         let environment_service = ForgeEnvironmentService::new(restricted);
         let env = environment_service.get_environment();
-        let snap_service = Arc::new(SnapshotService::default());
+        let snap_service = Arc::new(SnapshotService::new(env.snapshot_path()));
         Self {
+            // @ssddOnTop add file_rm service
             file_read_service: ForgeFileReadService::new(),
             file_write_service: ForgeFileWriteService::new(snap_service.clone()),
+            file_meta_service: ForgeFileMetaService,
             environment_service,
             information_repo: QdrantVectorIndex::new(env.clone(), "user_feedback"),
             embedding_service: OpenAIEmbeddingService::new(env),
             snap_service,
-            file_exists_service: ForgeFileMetaService,
-            _marker: Default::default(),
         }
-    }
-
-    pub fn transform(self, snap_service: Arc<SnapshotService>) -> ForgeInfra<Resolved> {
-        ForgeInfra {
-            file_read_service: self.file_read_service,
-            file_write_service: ForgeFileWriteService::new(snap_service.clone()),
-            environment_service: self.environment_service,
-            information_repo: self.information_repo,
-            embedding_service: self.embedding_service,
-            snap_service,
-            file_exists_service: ForgeFileMetaService,
-            _marker: Default::default(),
-        }
-    }
-
-    pub fn env(&self) -> &ForgeEnvironmentService {
-        &self.environment_service
     }
 }
 
-impl Infrastructure for ForgeInfra<Resolved> {
+impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
     type FileWriteService = ForgeFileWriteService;
     type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = OpenAIEmbeddingService;
-    type FileSnapshotService = SnapshotService;
     type FileMetaService = ForgeFileMetaService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
@@ -89,11 +66,7 @@ impl Infrastructure for ForgeInfra<Resolved> {
         &self.file_write_service
     }
 
-    fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
-        &self.snap_service
-    }
-
     fn file_meta_service(&self) -> &Self::FileMetaService {
-        &self.file_exists_service
+        &self.file_meta_service
     }
 }

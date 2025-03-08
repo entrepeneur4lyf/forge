@@ -62,6 +62,4 @@ pub trait API {
         key: String,
         value: Value,
     ) -> anyhow::Result<()>;
-
-    fn snap_service(&self) -> Arc<dyn FileSnapshotService>;
 }
