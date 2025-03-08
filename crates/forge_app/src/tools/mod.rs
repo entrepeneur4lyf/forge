@@ -41,11 +41,12 @@ mod tests {
 
     use bytes::Bytes;
     use forge_domain::{Environment, Point, Provider, Query, Suggestion};
-    use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
+    use forge_snaps::{SnapshotInfo, SnapshotMetadata};
 
     use super::*;
     use crate::{
-        EmbeddingService, FileMetaService, FileReadService, FileWriteService, VectorIndex,
+        EmbeddingService, FileMetaService, FileReadService, FileSnapshotService, FileWriteService,
+        VectorIndex,
     };
 
     /// Create a default test environment
@@ -173,6 +174,7 @@ mod tests {
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
         type FileMetaService = Stub;
+        type FileSnapshotService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -195,7 +197,11 @@ mod tests {
         }
 
         fn file_meta_service(&self) -> &Self::FileMetaService {
-            unimplemented!()
+            self
+        }
+
+        fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+            self
         }
     }
 

@@ -178,7 +178,6 @@ impl<F: API> UI<F> {
         Ok(())
     }
     async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
-
         match snapshot_command {
             SnapshotCommand::List { path } => {
                 let snapshots: Vec<SnapshotInfo> = self.api.list_snapshots(path).await?;
@@ -258,9 +257,7 @@ impl<F: API> UI<F> {
                             .format(),
                     )?;
 
-                    self.api
-                        .restore_by_index(path, *index as isize)
-                        .await?;
+                    self.api.restore_by_index(path, *index as isize).await?;
 
                     CONSOLE.writeln(
                         TitleFormat::success("Restore Complete")

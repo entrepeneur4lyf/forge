@@ -3,23 +3,22 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_app::FileWriteService;
-use forge_snaps::{FileSnapshotService, SnapshotService};
+use forge_app::{FileSnapshotService, FileWriteService};
 
-pub struct ForgeFileWriteService {
-    snap_service: Arc<SnapshotService>,
+pub struct ForgeFileWriteService<S> {
+    snaps: Arc<S>,
 }
 
-impl ForgeFileWriteService {
-    pub fn new(snap_service: Arc<SnapshotService>) -> Self {
-        Self { snap_service }
+impl<S> ForgeFileWriteService<S> {
+    pub fn new(snaps: Arc<S>) -> Self {
+        Self { snaps }
     }
 }
 
 #[async_trait::async_trait]
-impl FileWriteService for ForgeFileWriteService {
+impl<S: FileSnapshotService> FileWriteService for ForgeFileWriteService<S> {
     async fn write(&self, path: &Path, contents: Bytes) -> Result<()> {
-        let _ = self.snap_service.create_snapshot(path).await?;
+        let _ = self.snaps.create_snapshot(path).await?;
         Ok(forge_fs::ForgeFS::write(path, contents.to_vec()).await?)
     }
 }

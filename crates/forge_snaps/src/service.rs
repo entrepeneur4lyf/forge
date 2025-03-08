@@ -2,11 +2,10 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use forge_fs::ForgeFS;
 use forge_walker::Walker;
 
-use crate::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
+use crate::{SnapshotInfo, SnapshotMetadata};
 
 /// Implementation of `FileSnapshotService` that provides snapshot
 /// functionality for files with retention policies.
@@ -104,13 +103,12 @@ impl SnapshotService {
     }
 }
 
-#[async_trait]
-impl FileSnapshotService for SnapshotService {
-    fn snapshot_dir(&self) -> PathBuf {
+impl SnapshotService {
+    pub fn snapshot_dir(&self) -> PathBuf {
         self.snapshot_base_dir.clone()
     }
 
-    async fn create_snapshot(&self, file_path: &Path) -> Result<SnapshotInfo> {
+    pub async fn create_snapshot(&self, file_path: &Path) -> Result<SnapshotInfo> {
         // Ensure the file exists
         if !file_path.exists() {
             anyhow::bail!("File does not exist: {:?}", file_path);
@@ -151,7 +149,7 @@ impl FileSnapshotService for SnapshotService {
         Ok(snapshot_info)
     }
 
-    async fn list_snapshots(&self, file_path: &Path) -> Result<Vec<SnapshotInfo>> {
+    pub async fn list_snapshots(&self, file_path: &Path) -> Result<Vec<SnapshotInfo>> {
         let snapshots = self.get_sorted_snapshots(file_path).await?;
         let mut result = vec![];
 
@@ -169,7 +167,7 @@ impl FileSnapshotService for SnapshotService {
         Ok(result)
     }
 
-    async fn restore_by_timestamp(&self, file_path: &Path, timestamp: &str) -> Result<()> {
+    pub async fn restore_by_timestamp(&self, file_path: &Path, timestamp: &str) -> Result<()> {
         let snapshot_metadata = self.get_snapshot_by_timestamp(file_path, timestamp).await?;
 
         // ForgeFS::write the content back to the original file
@@ -180,7 +178,7 @@ impl FileSnapshotService for SnapshotService {
         Ok(())
     }
 
-    async fn restore_by_index(&self, file_path: &Path, index: isize) -> Result<()> {
+    pub async fn restore_by_index(&self, file_path: &Path, index: isize) -> Result<()> {
         let snapshot_metadata = self.get_snapshot_by_index(file_path, index).await?;
 
         // ForgeFS::write the content back to the original file
@@ -191,11 +189,11 @@ impl FileSnapshotService for SnapshotService {
         Ok(())
     }
 
-    async fn restore_previous(&self, file_path: &Path) -> Result<()> {
+    pub async fn restore_previous(&self, file_path: &Path) -> Result<()> {
         self.restore_by_index(file_path, -1).await
     }
 
-    async fn get_snapshot_by_timestamp(
+    pub async fn get_snapshot_by_timestamp(
         &self,
         file_path: &Path,
         timestamp: &str,
@@ -229,7 +227,7 @@ impl FileSnapshotService for SnapshotService {
         Ok(SnapshotMetadata { info, content, path_hash: self.hash_path(file_path) })
     }
 
-    async fn get_snapshot_by_index(
+    pub async fn get_snapshot_by_index(
         &self,
         file_path: &Path,
         mut index: isize,
@@ -255,7 +253,7 @@ impl FileSnapshotService for SnapshotService {
             .await
     }
 
-    async fn purge_older_than(&self, days: u32) -> Result<usize> {
+    pub async fn purge_older_than(&self, days: u32) -> Result<usize> {
         let cutoff = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")

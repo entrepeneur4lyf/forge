@@ -1,6 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use anyhow::Result;
 
 /// Represents information about a file snapshot
 ///
@@ -62,42 +61,6 @@ pub struct SnapshotMetadata {
     pub content: Vec<u8>,
     /// SHA-256 hash of the original file path, used for storage organization
     pub path_hash: String,
-}
-
-/// Service for managing file snapshots
-#[async_trait::async_trait]
-pub trait FileSnapshotService {
-    fn snapshot_dir(&self) -> PathBuf;
-
-    // Creation
-    async fn create_snapshot(&self, file_path: &Path) -> Result<SnapshotInfo>;
-
-    // Listing
-    async fn list_snapshots(&self, file_path: &Path) -> Result<Vec<SnapshotInfo>>;
-
-    // Timestamp-based restoration
-    async fn restore_by_timestamp(&self, file_path: &Path, timestamp: &str) -> Result<()>;
-
-    // Index-based restoration (0 = newest, 1 = previous version, etc.)
-    async fn restore_by_index(&self, file_path: &Path, index: isize) -> Result<()>;
-
-    // Convenient method to restore previous version
-    async fn restore_previous(&self, file_path: &Path) -> Result<()>;
-
-    // Metadata access
-    async fn get_snapshot_by_timestamp(
-        &self,
-        file_path: &Path,
-        timestamp: &str,
-    ) -> Result<SnapshotMetadata>;
-    async fn get_snapshot_by_index(
-        &self,
-        file_path: &Path,
-        index: isize,
-    ) -> Result<SnapshotMetadata>;
-
-    // Global purge operation
-    async fn purge_older_than(&self, days: u32) -> Result<usize>;
 }
 
 // Export the service implementation

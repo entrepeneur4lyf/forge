@@ -70,12 +70,12 @@ pub mod tests {
     use forge_domain::{
         AttachmentService, ContentType, Environment, Point, Provider, Query, Suggestion,
     };
-    use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
+    use forge_snaps::{SnapshotInfo, SnapshotMetadata};
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        EmbeddingService, EnvironmentService, FileMetaService, FileReadService, FileWriteService,
-        Infrastructure, VectorIndex,
+        EmbeddingService, EnvironmentService, FileMetaService, FileReadService,
+        FileSnapshotService, FileWriteService, Infrastructure, VectorIndex,
     };
     #[derive(Debug)]
     pub struct MockEnvironmentService {}
@@ -269,6 +269,7 @@ pub mod tests {
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
         type FileMetaService = MockFileService;
+        type FileSnapshotService = MockSnapService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -292,6 +293,10 @@ pub mod tests {
 
         fn file_meta_service(&self) -> &Self::FileMetaService {
             &self.file_service
+        }
+
+        fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+            &self.file_snapshot_service
         }
     }
 

@@ -73,6 +73,7 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     type VectorIndex = F::VectorIndex;
     type EmbeddingService = F::EmbeddingService;
     type FileMetaService = F::FileMetaService;
+    type FileSnapshotService = F::FileSnapshotService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
@@ -96,5 +97,9 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
 
     fn file_meta_service(&self) -> &Self::FileMetaService {
         self.infra.file_meta_service()
+    }
+
+    fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+        self.infra.file_snapshot_service()
     }
 }
