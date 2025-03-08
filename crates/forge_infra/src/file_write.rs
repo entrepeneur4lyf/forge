@@ -4,14 +4,14 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use bytes::Bytes;
 use forge_app::FileWriteService;
-use forge_snaps::{FileSnapshotService, ForgeSnapshotService};
+use forge_snaps::{FileSnapshotService, SnapshotService};
 
 pub struct ForgeFileWriteService {
-    snap_service: Arc<ForgeSnapshotService>,
+    snap_service: Arc<SnapshotService>,
 }
 
 impl ForgeFileWriteService {
-    pub fn new(snap_service: Arc<ForgeSnapshotService>) -> Self {
+    pub fn new(snap_service: Arc<SnapshotService>) -> Self {
         Self { snap_service }
     }
 }
