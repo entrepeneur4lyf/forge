@@ -44,7 +44,9 @@ mod tests {
     use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
 
     use super::*;
-    use crate::{EmbeddingService, FileMetaService, FileReadService, FileWriteService, VectorIndex};
+    use crate::{
+        EmbeddingService, FileMetaService, FileReadService, FileWriteService, VectorIndex,
+    };
 
     /// Create a default test environment
     fn stub() -> Stub {
