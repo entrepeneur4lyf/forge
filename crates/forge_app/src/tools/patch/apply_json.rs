@@ -276,8 +276,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
         self.0
             .file_write_service()
             .write(path, Bytes::from(current_content.clone()))
-            .await
-            .map_err(|v| Error::FileOperation(std::io::Error::other(v)))?;
+            .await?;
 
         // Check for syntax errors
         let warning = syn::validate(path, &current_content).map(|e| e.to_string());

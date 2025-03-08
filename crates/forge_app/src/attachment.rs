@@ -211,27 +211,27 @@ pub mod tests {
     #[async_trait::async_trait]
     impl FileSnapshotService for MockSnapService {
         fn snapshot_dir(&self) -> PathBuf {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn create_snapshot(&self, _: &Path) -> anyhow::Result<SnapshotInfo> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn list_snapshots(&self, _: &Path) -> anyhow::Result<Vec<SnapshotInfo>> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn restore_by_timestamp(&self, _: &Path, _: &str) -> anyhow::Result<()> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn restore_by_index(&self, _: &Path, _: isize) -> anyhow::Result<()> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn restore_previous(&self, _: &Path) -> anyhow::Result<()> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn get_snapshot_by_timestamp(
@@ -239,7 +239,7 @@ pub mod tests {
             _: &Path,
             _: &str,
         ) -> anyhow::Result<SnapshotMetadata> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn get_snapshot_by_index(
@@ -247,11 +247,11 @@ pub mod tests {
             _: &Path,
             _: isize,
         ) -> anyhow::Result<SnapshotMetadata> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
 
         async fn purge_older_than(&self, _: u32) -> anyhow::Result<usize> {
-            todo!()
+            unimplemented!("Unimplemented Stub")
         }
     }
 

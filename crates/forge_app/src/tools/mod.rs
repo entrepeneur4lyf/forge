@@ -22,11 +22,11 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
     vec![
         FSRead.into(),
         FSWrite::new(infra.clone()).into(),
+        // @ssddOnTop need to keep a back up on file removal
         FSRemove.into(),
         FSList::default().into(),
         FSSearch.into(),
         FSFileInfo.into(),
-        // TODO: once ApplyPatchJson is stable we can delete ApplyPatch
         // ApplyPatch::new(infra.clone()).into(),
         ApplyPatchJson::new(infra).into(),
         Shell::new(env.clone()).into(),
