@@ -44,7 +44,7 @@ mod tests {
     use forge_snaps::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
 
     use super::*;
-    use crate::{EmbeddingService, FileExist, FileReadService, FileWriteService, VectorIndex};
+    use crate::{EmbeddingService, FileMetaService, FileReadService, FileWriteService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -157,8 +157,8 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileExist for Stub {
-        async fn exist(&self, _: &Path) -> anyhow::Result<bool> {
+    impl FileMetaService for Stub {
+        async fn is_file(&self, _: &Path) -> anyhow::Result<bool> {
             todo!()
         }
     }
@@ -171,7 +171,7 @@ mod tests {
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
         type FileSnapshotService = Stub;
-        type FileExist = Stub;
+        type FileMetaService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -197,7 +197,7 @@ mod tests {
             self
         }
 
-        fn file_exist_service(&self) -> &Self::FileExist {
+        fn file_meta_service(&self) -> &Self::FileMetaService {
             todo!()
         }
     }

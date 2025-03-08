@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
-use crate::{FileExist, FileReadService, FileWriteService, Infrastructure};
+use crate::{FileMetaService, FileReadService, FileWriteService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
@@ -69,7 +69,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
         }
 
         // Check if the file exists
-        let file_exists = self.0.file_exist_service().exist(path).await?;
+        let file_exists = self.0.file_meta_service().is_file(path).await?;
 
         // If file exists and overwrite flag is not set, return an error with the
         // existing content
@@ -128,13 +128,13 @@ mod test {
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
-    use crate::{FileExist, FileReadService};
+    use crate::{FileMetaService, FileReadService};
 
     async fn assert_path_exists(path: impl AsRef<Path>, infra: &MockInfrastructure) {
         assert!(
             infra
-                .file_exist_service()
-                .exist(path.as_ref())
+                .file_meta_service()
+                .is_file(path.as_ref())
                 .await
                 .is_ok()
                 || path.as_ref().exists(),

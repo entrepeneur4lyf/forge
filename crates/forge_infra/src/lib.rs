@@ -1,6 +1,6 @@
 mod embedding;
 mod env;
-mod file_exists;
+mod file_meta;
 mod file_read;
 mod file_write;
 mod infra;

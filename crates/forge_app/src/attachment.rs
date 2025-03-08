@@ -74,7 +74,7 @@ pub mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        EmbeddingService, EnvironmentService, FileExist, FileReadService, FileWriteService,
+        EmbeddingService, EnvironmentService, FileMetaService, FileReadService, FileWriteService,
         Infrastructure, VectorIndex,
     };
     #[derive(Debug)]
@@ -256,8 +256,8 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileExist for MockFileService {
-        async fn exist(&self, path: &Path) -> anyhow::Result<bool> {
+    impl FileMetaService for MockFileService {
+        async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
         }
     }
@@ -269,7 +269,7 @@ pub mod tests {
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
         type FileSnapshotService = MockSnapService;
-        type FileExist = MockFileService;
+        type FileMetaService = MockFileService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -295,7 +295,7 @@ pub mod tests {
             &self.file_snapshot_service
         }
 
-        fn file_exist_service(&self) -> &Self::FileExist {
+        fn file_meta_service(&self) -> &Self::FileMetaService {
             &self.file_service
         }
     }

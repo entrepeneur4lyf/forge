@@ -5,7 +5,7 @@ use forge_snaps::FileSnapshotServiceImpl;
 
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;
-use crate::file_exists::FileExistService;
+use crate::file_meta::ForgeFileMetaService;
 use crate::file_read::ForgeFileReadService;
 use crate::file_write::ForgeFileWriteService;
 use crate::qdrant::QdrantVectorIndex;
@@ -20,7 +20,7 @@ pub struct ForgeInfra<T> {
     information_repo: QdrantVectorIndex,
     embedding_service: OpenAIEmbeddingService,
     snap_service: Arc<FileSnapshotServiceImpl>,
-    file_exists_service: FileExistService,
+    file_exists_service: ForgeFileMetaService,
 
     _marker: std::marker::PhantomData<T>,
 }
@@ -37,7 +37,7 @@ impl ForgeInfra<UnResolved> {
             information_repo: QdrantVectorIndex::new(env.clone(), "user_feedback"),
             embedding_service: OpenAIEmbeddingService::new(env),
             snap_service,
-            file_exists_service: FileExistService,
+            file_exists_service: ForgeFileMetaService,
             _marker: Default::default(),
         }
     }
@@ -50,7 +50,7 @@ impl ForgeInfra<UnResolved> {
             information_repo: self.information_repo,
             embedding_service: self.embedding_service,
             snap_service,
-            file_exists_service: FileExistService,
+            file_exists_service: ForgeFileMetaService,
             _marker: Default::default(),
         }
     }
@@ -67,7 +67,7 @@ impl Infrastructure for ForgeInfra<Resolved> {
     type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = OpenAIEmbeddingService;
     type FileSnapshotService = FileSnapshotServiceImpl;
-    type FileExist = FileExistService;
+    type FileMetaService = ForgeFileMetaService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -93,7 +93,7 @@ impl Infrastructure for ForgeInfra<Resolved> {
         &self.snap_service
     }
 
-    fn file_exist_service(&self) -> &Self::FileExist {
+    fn file_meta_service(&self) -> &Self::FileMetaService {
         &self.file_exists_service
     }
 }

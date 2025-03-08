@@ -13,7 +13,7 @@ use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
-use crate::{FileExist, FileReadService, FileWriteService, Infrastructure};
+use crate::{FileMetaService, FileReadService, FileWriteService, Infrastructure};
 
 #[derive(Debug, Error)]
 enum Error {
@@ -156,7 +156,7 @@ impl<T: Infrastructure> ExecutableTool for ApplyPatch<T> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        if !self.0.file_exist_service().exist(path).await? {
+        if !self.0.file_meta_service().is_file(path).await? {
             bail!(Error::FileNotFound(path.to_path_buf()));
         }
 
