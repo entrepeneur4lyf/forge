@@ -102,4 +102,4 @@ pub trait FileSnapshotService {
 
 // Export the service implementation
 pub mod service;
-pub use service::FileSnapshotServiceImpl;
+pub use service::ForgeSnapshotService;

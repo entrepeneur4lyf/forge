@@ -11,14 +11,14 @@ use crate::{FileSnapshotService, SnapshotInfo, SnapshotMetadata};
 /// Implementation of `FileSnapshotService` that provides snapshot
 /// functionality for files with retention policies.
 #[derive(Default, Debug)]
-pub struct FileSnapshotServiceImpl {
+pub struct ForgeSnapshotService {
     /// Base directory for storing snapshots
     snapshot_base_dir: PathBuf,
     /// Maximum number of snapshots to keep per file
     max_snapshots_per_file: usize,
 }
 
-impl FileSnapshotServiceImpl {
+impl ForgeSnapshotService {
     /// Creates a new instance with a custom snapshot directory
     pub fn new(snapshot_base_dir: PathBuf) -> Self {
         Self {
@@ -105,7 +105,7 @@ impl FileSnapshotServiceImpl {
 }
 
 #[async_trait]
-impl FileSnapshotService for FileSnapshotServiceImpl {
+impl FileSnapshotService for ForgeSnapshotService {
     fn snapshot_dir(&self) -> PathBuf {
         self.snapshot_base_dir.clone()
     }
@@ -314,7 +314,7 @@ mod tests {
     async fn test_create_snapshot() -> Result<()> {
         let temp_dir = tempdir()?;
         let base_path = temp_dir.path().to_path_buf();
-        let service = FileSnapshotServiceImpl::new(base_path.join("snapshots"));
+        let service = ForgeSnapshotService::new(base_path.join("snapshots"));
 
         // Create a test file
         let test_file_path = base_path.join("test.txt");
@@ -336,7 +336,7 @@ mod tests {
     async fn test_list_snapshots() -> Result<()> {
         let temp_dir = tempdir()?;
         let base_path = temp_dir.path().to_path_buf();
-        let service = FileSnapshotServiceImpl::new(base_path.join("snapshots"));
+        let service = ForgeSnapshotService::new(base_path.join("snapshots"));
 
         // Create a test file
         let test_file_path = base_path.join("test.txt");
@@ -372,7 +372,7 @@ mod tests {
     async fn test_restore_by_index() -> Result<()> {
         let temp_dir = tempdir()?;
         let base_path = temp_dir.path().to_path_buf();
-        let service = FileSnapshotServiceImpl::new(base_path.join("snapshots"));
+        let service = ForgeSnapshotService::new(base_path.join("snapshots"));
 
         // Create a test file
         let test_file_path = base_path.join("test.txt");
@@ -402,7 +402,7 @@ mod tests {
     async fn test_retention_policy() -> Result<()> {
         let temp_dir = tempdir()?;
         let base_path = temp_dir.path().to_path_buf();
-        let mut service = FileSnapshotServiceImpl::new(base_path.join("snapshots"));
+        let mut service = ForgeSnapshotService::new(base_path.join("snapshots"));
         service.max_snapshots_per_file = 3; // Set a small limit for testing
 
         // Create a test file

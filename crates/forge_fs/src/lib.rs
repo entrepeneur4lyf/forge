@@ -18,7 +18,6 @@ impl ForgeFS {
     pub async fn read<T: AsRef<Path>>(path: T) -> Result<Vec<u8>> {
         tokio::fs::read(path.as_ref())
             .await
-            // .map(Bytes::from)
             .with_context(|| format!("Failed to read file {}", path.as_ref().display()))
     }
     pub async fn remove_file<T: AsRef<Path>>(path: T) -> Result<()> {
