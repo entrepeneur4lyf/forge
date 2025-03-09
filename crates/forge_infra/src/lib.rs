@@ -6,5 +6,7 @@ mod file_snap;
 mod file_write;
 mod infra;
 mod qdrant;
+mod file_remove;
+mod create_dirs;
 
 pub use infra::*;

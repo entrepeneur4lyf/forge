@@ -42,6 +42,12 @@ pub trait FileWriteService: Send + Sync {
 }
 
 #[async_trait::async_trait]
+pub trait FileRemoveService: Send + Sync {
+    /// Removes a file at the specified path.
+    async fn remove(&self, path: &Path) -> anyhow::Result<()>;
+}
+
+#[async_trait::async_trait]
 pub trait VectorIndex<T>: Send + Sync {
     async fn store(&self, point: Point<T>) -> anyhow::Result<()>;
     async fn search(&self, query: Query) -> anyhow::Result<Vec<Point<T>>>;
@@ -55,6 +61,12 @@ pub trait EmbeddingService: Send + Sync {
 #[async_trait::async_trait]
 pub trait FileMetaService: Send + Sync {
     async fn is_file(&self, path: &Path) -> anyhow::Result<bool>;
+    async fn exists(&self, path: &Path) -> anyhow::Result<bool>;
+}
+
+#[async_trait::async_trait]
+pub trait CreateDirsService {
+    async fn create_dirs(&self, path: &Path) -> anyhow::Result<()>;
 }
 
 /// Service for managing file snapshots
@@ -99,15 +111,20 @@ pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileMetaService: FileMetaService;
     type FileReadService: FileReadService;
+    type FileRemoveService: FileRemoveService;
     type FileSnapshotService: FileSnapshotService;
     type FileWriteService: FileWriteService;
     type VectorIndex: VectorIndex<Suggestion>;
+    type CreateDirsService: CreateDirsService;
+    
 
     fn embedding_service(&self) -> &Self::EmbeddingService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_meta_service(&self) -> &Self::FileMetaService;
     fn file_read_service(&self) -> &Self::FileReadService;
+    fn file_remove_service(&self) -> &Self::FileRemoveService;
     fn file_snapshot_service(&self) -> &Self::FileSnapshotService;
     fn file_write_service(&self) -> &Self::FileWriteService;
     fn vector_index(&self) -> &Self::VectorIndex;
+    fn create_dirs_service(&self) -> &Self::CreateDirsService;
 }

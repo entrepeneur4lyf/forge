@@ -22,8 +22,7 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
     vec![
         FSRead.into(),
         FSWrite::new(infra.clone()).into(),
-        // @ssddOnTop need to keep a back up on file removal
-        FSRemove.into(),
+        FSRemove::new(infra.clone()).into(),
         FSList::default().into(),
         FSSearch.into(),
         FSFileInfo.into(),
@@ -44,10 +43,7 @@ mod tests {
     use forge_snaps::{SnapshotInfo, SnapshotMetadata};
 
     use super::*;
-    use crate::{
-        EmbeddingService, FileMetaService, FileReadService, FileSnapshotService, FileWriteService,
-        VectorIndex,
-    };
+    use crate::{CreateDirsService, EmbeddingService, FileMetaService, FileReadService, FileRemoveService, FileSnapshotService, FileWriteService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -164,17 +160,38 @@ mod tests {
         async fn is_file(&self, _: &Path) -> anyhow::Result<bool> {
             unimplemented!()
         }
-    }
 
+        async fn exists(&self, _: &Path) -> anyhow::Result<bool> {
+            unimplemented!()
+        }
+    }
+    
+    #[async_trait::async_trait]
+    impl FileRemoveService for Stub {
+        async fn remove(&self, _: &Path) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+    }
+    
+    #[async_trait::async_trait]
+    impl CreateDirsService for Stub {
+        async fn create_dirs(&self, _: &Path) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+    }
+    
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
         type FileReadService = Stub;
         type FileWriteService = Stub;
+        type FileRemoveService = Stub;
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
         type FileMetaService = Stub;
         type FileSnapshotService = Stub;
+        type CreateDirsService = Stub;
+        
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -201,6 +218,13 @@ mod tests {
         }
 
         fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+            self
+        }
+        fn file_remove_service(&self) -> &Self::FileRemoveService {
+            self
+        }
+        
+        fn create_dirs_service(&self) -> &Self::CreateDirsService {
             self
         }
     }

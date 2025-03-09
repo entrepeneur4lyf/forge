@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
-use forge_app::{EnvironmentService, Infrastructure};
-
+use crate::create_dirs::ForgeCreateDirsService;
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;
 use crate::file_meta::ForgeFileMetaService;
 use crate::file_read::ForgeFileReadService;
+use crate::file_remove::ForgeFileRemoveService;
 use crate::file_snap::ForgeFileSnapshotService;
 use crate::file_write::ForgeFileWriteService;
 use crate::qdrant::QdrantVectorIndex;
+use forge_app::{EnvironmentService, Infrastructure};
 
 pub struct ForgeInfra {
     file_read_service: ForgeFileReadService,
@@ -18,6 +19,8 @@ pub struct ForgeInfra {
     embedding_service: OpenAIEmbeddingService,
     file_snapshot_service: Arc<ForgeFileSnapshotService>,
     file_meta_service: ForgeFileMetaService,
+    file_remove_service: ForgeFileRemoveService,
+    create_dirs_service: ForgeCreateDirsService,
 }
 
 impl ForgeInfra {
@@ -26,14 +29,15 @@ impl ForgeInfra {
         let env = environment_service.get_environment();
         let file_snapshot_service = Arc::new(ForgeFileSnapshotService::new(env.clone()));
         Self {
-            // @ssddOnTop add file_rm service
             file_read_service: ForgeFileReadService::new(),
             file_write_service: ForgeFileWriteService::new(file_snapshot_service.clone()),
             file_meta_service: ForgeFileMetaService,
+            file_remove_service: ForgeFileRemoveService::default(),
             environment_service,
             information_repo: QdrantVectorIndex::new(env.clone(), "user_feedback"),
             embedding_service: OpenAIEmbeddingService::new(env.clone()),
             file_snapshot_service,
+            create_dirs_service: ForgeCreateDirsService::default(),
         }
     }
 }
@@ -46,6 +50,8 @@ impl Infrastructure for ForgeInfra {
     type EmbeddingService = OpenAIEmbeddingService;
     type FileMetaService = ForgeFileMetaService;
     type FileSnapshotService = ForgeFileSnapshotService;
+    type FileRemoveService = ForgeFileRemoveService;
+    type CreateDirsService = ForgeCreateDirsService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -73,5 +79,13 @@ impl Infrastructure for ForgeInfra {
 
     fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
         &self.file_snapshot_service
+    }
+
+    fn file_remove_service(&self) -> &Self::FileRemoveService {
+        &self.file_remove_service
+    }
+
+    fn create_dirs_service(&self) -> &Self::CreateDirsService {
+        &self.create_dirs_service
     }
 }

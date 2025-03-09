@@ -74,6 +74,9 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     type EmbeddingService = F::EmbeddingService;
     type FileMetaService = F::FileMetaService;
     type FileSnapshotService = F::FileSnapshotService;
+    type FileRemoveService = F::FileRemoveService;
+    type CreateDirsService = F::CreateDirsService;
+    
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
@@ -101,5 +104,13 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
 
     fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
         self.infra.file_snapshot_service()
+    }
+    
+    fn file_remove_service(&self) -> &Self::FileRemoveService {
+        self.infra.file_remove_service()
+    }
+    
+    fn create_dirs_service(&self) -> &Self::CreateDirsService {
+        self.infra.create_dirs_service()
     }
 }

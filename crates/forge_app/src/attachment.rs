@@ -74,8 +74,8 @@ pub mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        EmbeddingService, EnvironmentService, FileMetaService, FileReadService,
-        FileSnapshotService, FileWriteService, Infrastructure, VectorIndex,
+        CreateDirsService, EmbeddingService, EnvironmentService, FileMetaService, FileReadService,
+        FileRemoveService, FileSnapshotService, FileWriteService, Infrastructure, VectorIndex,
     };
     #[derive(Debug)]
     pub struct MockEnvironmentService {}
@@ -191,6 +191,28 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl FileRemoveService for MockFileService {
+        async fn remove(&self, path: &Path) -> anyhow::Result<()> {
+            if !self.exists(path).await? {
+                return Err(anyhow::anyhow!("File not found: {:?}", path));
+            }
+            self.files.lock().unwrap().retain(|(p, _)| p != path);
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CreateDirsService for MockFileService {
+        async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
+            self.files
+                .lock()
+                .unwrap()
+                .push((path.to_path_buf(), Bytes::new()));
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
     impl FileWriteService for MockFileService {
         async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()> {
             let index = self.files.lock().unwrap().iter().position(|v| v.0 == path);
@@ -258,6 +280,16 @@ pub mod tests {
     #[async_trait::async_trait]
     impl FileMetaService for MockFileService {
         async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
+            Ok(self
+                .files
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|v| v.0.extension().is_some())
+                .any(|(p, _)| p == path))
+        }
+
+        async fn exists(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
         }
     }
@@ -266,9 +298,11 @@ pub mod tests {
         type EnvironmentService = MockEnvironmentService;
         type FileReadService = MockFileService;
         type FileWriteService = MockFileService;
+        type FileRemoveService = MockFileService;
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
         type FileMetaService = MockFileService;
+        type CreateDirsService = MockFileService;
         type FileSnapshotService = MockSnapService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
@@ -297,6 +331,14 @@ pub mod tests {
 
         fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
             &self.file_snapshot_service
+        }
+
+        fn file_remove_service(&self) -> &Self::FileRemoveService {
+            &self.file_service
+        }
+
+        fn create_dirs_service(&self) -> &Self::CreateDirsService {
+            &self.file_service
         }
     }
 

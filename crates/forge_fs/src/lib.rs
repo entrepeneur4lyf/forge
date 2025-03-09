@@ -28,4 +28,7 @@ impl ForgeFS {
     pub fn exists<T: AsRef<Path>>(path: T) -> bool {
         path.as_ref().exists()
     }
+    pub fn is_file<T: AsRef<Path>>(path: T) -> bool {
+        path.as_ref().is_file()
+    }
 }
