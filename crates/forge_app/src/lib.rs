@@ -116,7 +116,6 @@ pub trait Infrastructure: Send + Sync + 'static {
     type FileWriteService: FileWriteService;
     type VectorIndex: VectorIndex<Suggestion>;
     type CreateDirsService: CreateDirsService;
-    
 
     fn embedding_service(&self) -> &Self::EmbeddingService;
     fn environment_service(&self) -> &Self::EnvironmentService;

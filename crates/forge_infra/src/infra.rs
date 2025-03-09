@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use forge_app::{EnvironmentService, Infrastructure};
+
 use crate::create_dirs::ForgeCreateDirsService;
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;
@@ -9,7 +11,6 @@ use crate::file_remove::ForgeFileRemoveService;
 use crate::file_snap::ForgeFileSnapshotService;
 use crate::file_write::ForgeFileWriteService;
 use crate::qdrant::QdrantVectorIndex;
-use forge_app::{EnvironmentService, Infrastructure};
 
 pub struct ForgeInfra {
     file_read_service: ForgeFileReadService,
@@ -32,12 +33,12 @@ impl ForgeInfra {
             file_read_service: ForgeFileReadService::new(),
             file_write_service: ForgeFileWriteService::new(file_snapshot_service.clone()),
             file_meta_service: ForgeFileMetaService,
-            file_remove_service: ForgeFileRemoveService::default(),
+            file_remove_service: ForgeFileRemoveService,
             environment_service,
             information_repo: QdrantVectorIndex::new(env.clone(), "user_feedback"),
             embedding_service: OpenAIEmbeddingService::new(env.clone()),
             file_snapshot_service,
-            create_dirs_service: ForgeCreateDirsService::default(),
+            create_dirs_service: ForgeCreateDirsService,
         }
     }
 }

@@ -1,5 +1,6 @@
-use forge_app::FileRemoveService;
 use std::path::Path;
+
+use forge_app::FileRemoveService;
 
 #[derive(Default)]
 pub struct ForgeFileRemoveService;

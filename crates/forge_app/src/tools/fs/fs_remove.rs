@@ -1,11 +1,13 @@
-use crate::tools::utils::assert_absolute_path;
-use crate::{FileMetaService, FileRemoveService, Infrastructure};
+use std::path::Path;
+use std::sync::Arc;
+
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::path::Path;
-use std::sync::Arc;
+
+use crate::tools::utils::assert_absolute_path;
+use crate::{FileMetaService, FileRemoveService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSRemoveInput {
@@ -45,7 +47,7 @@ impl<T: Infrastructure> ExecutableTool for FSRemove<T> {
         }
 
         // Check if it's a file
-        if !self.0.file_meta_service().is_file(&path).await? {
+        if !self.0.file_meta_service().is_file(path).await? {
             return Err(anyhow::anyhow!("Path is not a file: {}", input.path));
         }
 
@@ -58,11 +60,12 @@ impl<T: Infrastructure> ExecutableTool for FSRemove<T> {
 
 #[cfg(test)]
 mod test {
+    use bytes::Bytes;
+
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
     use crate::{CreateDirsService, FileWriteService};
-    use bytes::Bytes;
 
     #[tokio::test]
     async fn test_fs_remove_success() {

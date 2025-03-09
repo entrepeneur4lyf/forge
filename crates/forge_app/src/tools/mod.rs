@@ -43,7 +43,10 @@ mod tests {
     use forge_snaps::{SnapshotInfo, SnapshotMetadata};
 
     use super::*;
-    use crate::{CreateDirsService, EmbeddingService, FileMetaService, FileReadService, FileRemoveService, FileSnapshotService, FileWriteService, VectorIndex};
+    use crate::{
+        CreateDirsService, EmbeddingService, FileMetaService, FileReadService, FileRemoveService,
+        FileSnapshotService, FileWriteService, VectorIndex,
+    };
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -165,21 +168,21 @@ mod tests {
             unimplemented!()
         }
     }
-    
+
     #[async_trait::async_trait]
     impl FileRemoveService for Stub {
         async fn remove(&self, _: &Path) -> anyhow::Result<()> {
             unimplemented!()
         }
     }
-    
+
     #[async_trait::async_trait]
     impl CreateDirsService for Stub {
         async fn create_dirs(&self, _: &Path) -> anyhow::Result<()> {
             unimplemented!()
         }
     }
-    
+
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
@@ -191,7 +194,6 @@ mod tests {
         type FileMetaService = Stub;
         type FileSnapshotService = Stub;
         type CreateDirsService = Stub;
-        
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -223,7 +225,7 @@ mod tests {
         fn file_remove_service(&self) -> &Self::FileRemoveService {
             self
         }
-        
+
         fn create_dirs_service(&self) -> &Self::CreateDirsService {
             self
         }
