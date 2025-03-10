@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
-forge_fs = { path = "../forge_fs" }
-forge_walker = { path = "../forge_walker" }
+forge_fs.workspace = true
+forge_walker.workspace = true
 blake3.workspace = true
 
 [dev-dependencies]
