@@ -1,3 +1,13 @@
+//! # ForgeFS
+//!
+//! A file system abstraction layer that standardizes error handling for file
+//! operations.
+//!
+//! ForgeFS wraps tokio's filesystem operations with consistent error context
+//! using anyhow::Context. Each method provides standardized error messages in
+//! the format "Failed to [operation] [path]", ensuring uniform error reporting
+//! throughout the application while preserving the original error cause.
+
 use std::path::Path;
 
 use anyhow::{Context, Result};
