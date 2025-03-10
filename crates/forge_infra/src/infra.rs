@@ -20,7 +20,7 @@ pub struct ForgeInfra {
     embedding_service: OpenAIEmbeddingService,
     file_snapshot_service: Arc<ForgeFileSnapshotService>,
     file_meta_service: ForgeFileMetaService,
-    file_remove_service: ForgeFileRemoveService,
+    file_remove_service: ForgeFileRemoveService<ForgeFileSnapshotService>,
     create_dirs_service: ForgeCreateDirsService,
 }
 
@@ -33,7 +33,7 @@ impl ForgeInfra {
             file_read_service: ForgeFileReadService::new(),
             file_write_service: ForgeFileWriteService::new(file_snapshot_service.clone()),
             file_meta_service: ForgeFileMetaService,
-            file_remove_service: ForgeFileRemoveService,
+            file_remove_service: ForgeFileRemoveService::new(file_snapshot_service.clone()),
             environment_service,
             information_repo: QdrantVectorIndex::new(env.clone(), "user_feedback"),
             embedding_service: OpenAIEmbeddingService::new(env.clone()),
@@ -51,7 +51,7 @@ impl Infrastructure for ForgeInfra {
     type EmbeddingService = OpenAIEmbeddingService;
     type FileMetaService = ForgeFileMetaService;
     type FileSnapshotService = ForgeFileSnapshotService;
-    type FileRemoveService = ForgeFileRemoveService;
+    type FileRemoveService = ForgeFileRemoveService<ForgeFileSnapshotService>;
     type CreateDirsService = ForgeCreateDirsService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
