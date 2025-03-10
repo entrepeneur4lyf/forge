@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
-use crate::{FileMetaService, FileReadService, FileWriteService, Infrastructure};
+use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
@@ -128,7 +128,7 @@ mod test {
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
-    use crate::{FileMetaService, FileReadService};
+    use crate::{FsMetaService, FsReadService};
 
     async fn assert_path_exists(path: impl AsRef<Path>, infra: &MockInfrastructure) {
         assert!(

@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::tools::utils::assert_absolute_path;
-use crate::{FileMetaService, FileRemoveService, Infrastructure};
+use crate::{FileRemoveService, FsMetaService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSRemoveInput {
@@ -65,7 +65,7 @@ mod test {
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
-    use crate::{CreateDirsService, FileWriteService};
+    use crate::{FsCreateDirsService, FsWriteService};
 
     #[tokio::test]
     async fn test_fs_remove_success() {

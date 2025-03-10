@@ -13,7 +13,7 @@ use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
-use crate::{FileMetaService, FileReadService, FileWriteService, Infrastructure};
+use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};
 
 #[derive(Debug, Error)]
 enum Error {

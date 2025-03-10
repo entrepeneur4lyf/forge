@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use forge_app::{EnvironmentService, Infrastructure};
 
-use crate::create_dirs::ForgeCreateDirsService;
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;
-use crate::file_meta::ForgeFileMetaService;
-use crate::file_read::ForgeFileReadService;
-use crate::file_remove::ForgeFileRemoveService;
-use crate::file_snap::ForgeFileSnapshotService;
-use crate::file_write::ForgeFileWriteService;
+use crate::fs_create_dirs::ForgeCreateDirsService;
+use crate::fs_meta::ForgeFileMetaService;
+use crate::fs_read::ForgeFileReadService;
+use crate::fs_remove::ForgeFileRemoveService;
+use crate::fs_snap::ForgeFileSnapshotService;
+use crate::fs_write::ForgeFileWriteService;
 use crate::qdrant::QdrantVectorIndex;
 
 pub struct ForgeInfra {
@@ -45,20 +45,20 @@ impl ForgeInfra {
 
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
-    type FileReadService = ForgeFileReadService;
-    type FileWriteService = ForgeFileWriteService<ForgeFileSnapshotService>;
+    type FsReadService = ForgeFileReadService;
+    type FsWriteService = ForgeFileWriteService<ForgeFileSnapshotService>;
     type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = OpenAIEmbeddingService;
-    type FileMetaService = ForgeFileMetaService;
-    type FileSnapshotService = ForgeFileSnapshotService;
-    type FileRemoveService = ForgeFileRemoveService<ForgeFileSnapshotService>;
-    type CreateDirsService = ForgeCreateDirsService;
+    type FsMetaService = ForgeFileMetaService;
+    type FsSnapshotService = ForgeFileSnapshotService;
+    type FsRemoveService = ForgeFileRemoveService<ForgeFileSnapshotService>;
+    type FsCreateDirsService = ForgeCreateDirsService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
     }
 
-    fn file_read_service(&self) -> &Self::FileReadService {
+    fn file_read_service(&self) -> &Self::FsReadService {
         &self.file_read_service
     }
 
@@ -70,23 +70,23 @@ impl Infrastructure for ForgeInfra {
         &self.embedding_service
     }
 
-    fn file_write_service(&self) -> &Self::FileWriteService {
+    fn file_write_service(&self) -> &Self::FsWriteService {
         &self.file_write_service
     }
 
-    fn file_meta_service(&self) -> &Self::FileMetaService {
+    fn file_meta_service(&self) -> &Self::FsMetaService {
         &self.file_meta_service
     }
 
-    fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+    fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
         &self.file_snapshot_service
     }
 
-    fn file_remove_service(&self) -> &Self::FileRemoveService {
+    fn file_remove_service(&self) -> &Self::FsRemoveService {
         &self.file_remove_service
     }
 
-    fn create_dirs_service(&self) -> &Self::CreateDirsService {
+    fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
         &self.create_dirs_service
     }
 }

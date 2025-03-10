@@ -5,7 +5,7 @@ use std::sync::Arc;
 use base64::Engine;
 use forge_domain::{Attachment, AttachmentService, ContentType};
 
-use crate::{FileReadService, Infrastructure};
+use crate::{FsReadService, Infrastructure};
 // TODO: bring pdf support, pdf is just a collection of images.
 
 pub struct ForgeChatRequest<F> {
@@ -74,8 +74,9 @@ pub mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        CreateDirsService, EmbeddingService, EnvironmentService, FileMetaService, FileReadService,
-        FileRemoveService, FileSnapshotService, FileWriteService, Infrastructure, VectorIndex,
+        EmbeddingService, EnvironmentService, FileRemoveService, FsCreateDirsService,
+        FsMetaService, FsReadService, FsSnapshotService, FsWriteService, Infrastructure,
+        VectorIndex,
     };
     #[derive(Debug)]
     pub struct MockEnvironmentService {}
@@ -132,7 +133,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileReadService for MockFileService {
+    impl FsReadService for MockFileService {
         async fn read(&self, path: &Path) -> anyhow::Result<Bytes> {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
@@ -202,7 +203,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl CreateDirsService for MockFileService {
+    impl FsCreateDirsService for MockFileService {
         async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
             self.files
                 .lock()
@@ -213,7 +214,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileWriteService for MockFileService {
+    impl FsWriteService for MockFileService {
         async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()> {
             let index = self.files.lock().unwrap().iter().position(|v| v.0 == path);
             if let Some(index) = index {
@@ -231,7 +232,7 @@ pub mod tests {
     pub struct MockSnapService;
 
     #[async_trait::async_trait]
-    impl FileSnapshotService for MockSnapService {
+    impl FsSnapshotService for MockSnapService {
         fn snapshot_dir(&self) -> PathBuf {
             unimplemented!()
         }
@@ -278,7 +279,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileMetaService for MockFileService {
+    impl FsMetaService for MockFileService {
         async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self
                 .files
@@ -296,24 +297,24 @@ pub mod tests {
 
     impl Infrastructure for MockInfrastructure {
         type EnvironmentService = MockEnvironmentService;
-        type FileReadService = MockFileService;
-        type FileWriteService = MockFileService;
-        type FileRemoveService = MockFileService;
+        type FsReadService = MockFileService;
+        type FsWriteService = MockFileService;
+        type FsRemoveService = MockFileService;
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
-        type FileMetaService = MockFileService;
-        type CreateDirsService = MockFileService;
-        type FileSnapshotService = MockSnapService;
+        type FsMetaService = MockFileService;
+        type FsCreateDirsService = MockFileService;
+        type FsSnapshotService = MockSnapService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
         }
 
-        fn file_read_service(&self) -> &Self::FileReadService {
+        fn file_read_service(&self) -> &Self::FsReadService {
             &self.file_service
         }
 
-        fn file_write_service(&self) -> &Self::FileWriteService {
+        fn file_write_service(&self) -> &Self::FsWriteService {
             &self.file_service
         }
 
@@ -325,19 +326,19 @@ pub mod tests {
             &self.embedding_service
         }
 
-        fn file_meta_service(&self) -> &Self::FileMetaService {
+        fn file_meta_service(&self) -> &Self::FsMetaService {
             &self.file_service
         }
 
-        fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+        fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
             &self.file_snapshot_service
         }
 
-        fn file_remove_service(&self) -> &Self::FileRemoveService {
+        fn file_remove_service(&self) -> &Self::FsRemoveService {
             &self.file_service
         }
 
-        fn create_dirs_service(&self) -> &Self::CreateDirsService {
+        fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
             &self.file_service
         }
     }

@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use forge_app::FileSnapshotService;
+use forge_app::FsSnapshotService;
 use forge_domain::Environment;
 use forge_snaps::{SnapshotInfo, SnapshotMetadata};
 
@@ -18,7 +18,7 @@ impl ForgeFileSnapshotService {
 }
 
 #[async_trait::async_trait]
-impl FileSnapshotService for ForgeFileSnapshotService {
+impl FsSnapshotService for ForgeFileSnapshotService {
     fn snapshot_dir(&self) -> PathBuf {
         self.inner.snapshot_dir()
     }

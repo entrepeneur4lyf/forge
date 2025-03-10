@@ -44,8 +44,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        CreateDirsService, EmbeddingService, FileMetaService, FileReadService, FileRemoveService,
-        FileSnapshotService, FileWriteService, VectorIndex,
+        EmbeddingService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
+        FsSnapshotService, FsWriteService, VectorIndex,
     };
 
     /// Create a default test environment
@@ -88,14 +88,14 @@ mod tests {
         }
     }
     #[async_trait::async_trait]
-    impl FileReadService for Stub {
+    impl FsReadService for Stub {
         async fn read(&self, _path: &Path) -> anyhow::Result<Bytes> {
             unimplemented!()
         }
     }
 
     #[async_trait::async_trait]
-    impl FileWriteService for Stub {
+    impl FsWriteService for Stub {
         async fn write(&self, _: &Path, _: Bytes) -> anyhow::Result<()> {
             unimplemented!()
         }
@@ -112,7 +112,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileSnapshotService for Stub {
+    impl FsSnapshotService for Stub {
         fn snapshot_dir(&self) -> PathBuf {
             unimplemented!()
         }
@@ -159,7 +159,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl FileMetaService for Stub {
+    impl FsMetaService for Stub {
         async fn is_file(&self, _: &Path) -> anyhow::Result<bool> {
             unimplemented!()
         }
@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl CreateDirsService for Stub {
+    impl FsCreateDirsService for Stub {
         async fn create_dirs(&self, _: &Path) -> anyhow::Result<()> {
             unimplemented!()
         }
@@ -186,24 +186,24 @@ mod tests {
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
-        type FileReadService = Stub;
-        type FileWriteService = Stub;
-        type FileRemoveService = Stub;
+        type FsReadService = Stub;
+        type FsWriteService = Stub;
+        type FsRemoveService = Stub;
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
-        type FileMetaService = Stub;
-        type FileSnapshotService = Stub;
-        type CreateDirsService = Stub;
+        type FsMetaService = Stub;
+        type FsSnapshotService = Stub;
+        type FsCreateDirsService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
         }
 
-        fn file_read_service(&self) -> &Self::FileReadService {
+        fn file_read_service(&self) -> &Self::FsReadService {
             self
         }
 
-        fn file_write_service(&self) -> &Self::FileWriteService {
+        fn file_write_service(&self) -> &Self::FsWriteService {
             self
         }
 
@@ -215,18 +215,18 @@ mod tests {
             self
         }
 
-        fn file_meta_service(&self) -> &Self::FileMetaService {
+        fn file_meta_service(&self) -> &Self::FsMetaService {
             self
         }
 
-        fn file_snapshot_service(&self) -> &Self::FileSnapshotService {
+        fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
             self
         }
-        fn file_remove_service(&self) -> &Self::FileRemoveService {
+        fn file_remove_service(&self) -> &Self::FsRemoveService {
             self
         }
 
-        fn create_dirs_service(&self) -> &Self::CreateDirsService {
+        fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
             self
         }
     }

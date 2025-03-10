@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, FileSnapshotService, ForgeApp, Infrastructure};
+use forge_app::{EnvironmentService, ForgeApp, FsSnapshotService, Infrastructure};
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_snaps::{SnapshotInfo, SnapshotMetadata};

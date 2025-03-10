@@ -1,11 +1,11 @@
-mod create_dirs;
 mod embedding;
 mod env;
-mod file_meta;
-mod file_read;
-mod file_remove;
-mod file_snap;
-mod file_write;
+mod fs_create_dirs;
+mod fs_meta;
+mod fs_read;
+mod fs_remove;
+mod fs_snap;
+mod fs_write;
 mod infra;
 mod qdrant;
 
