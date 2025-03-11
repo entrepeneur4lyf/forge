@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use forge_walker::Walker;
 use reedline::{Completer, Suggestion};
-use tracing::trace;
 
 use crate::completer::search_term::SearchTerm;
 use crate::completer::CommandCompleter;
@@ -34,20 +33,18 @@ impl Completer for InputCompleter {
             let files = self.walker.get_blocking().unwrap_or_default();
             let suggestions = files
                 .into_iter()
-                .filter(|file| !file.is_dir())
                 .filter_map(|file| {
                     if let Some(file_name) = file.file_name.as_ref() {
                         let file_name_lower = file_name.to_lowercase();
                         let query_lower = query.term.to_lowercase();
-                        if file_name_lower.contains(&query_lower) {
+                        if file_name_lower.starts_with(&query_lower) {
                             let replacement_value = file_name.to_string();
-                            
+
                             let description = if file.path.len() > file_name.len() {
                                 Some(format!("File: {}", file.path))
                             } else {
                                 Some("File".to_string())
                             };
-                            
                             Some(Suggestion {
                                 value: replacement_value,
                                 description,
