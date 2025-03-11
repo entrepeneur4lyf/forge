@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use forge_walker::Walker;
 use reedline::{Completer, Suggestion};
+use tracing::trace;
 
 use crate::completer::search_term::SearchTerm;
 use crate::completer::CommandCompleter;
@@ -31,7 +32,7 @@ impl Completer for InputCompleter {
 
         if let Some(query) = SearchTerm::new(line, pos).process() {
             let files = self.walker.get_blocking().unwrap_or_default();
-            files
+            let suggestions = files
                 .into_iter()
                 .filter(|file| !file.is_dir())
                 .filter_map(|file| {
@@ -39,9 +40,17 @@ impl Completer for InputCompleter {
                         let file_name_lower = file_name.to_lowercase();
                         let query_lower = query.term.to_lowercase();
                         if file_name_lower.contains(&query_lower) {
+                            let replacement_value = file_name.to_string();
+                            
+                            let description = if file.path.len() > file_name.len() {
+                                Some(format!("File: {}", file.path))
+                            } else {
+                                Some("File".to_string())
+                            };
+                            
                             Some(Suggestion {
-                                value: file.path,
-                                description: None,
+                                value: replacement_value,
+                                description,
                                 style: None,
                                 extra: None,
                                 span: query.span,
@@ -54,7 +63,11 @@ impl Completer for InputCompleter {
                         None
                     }
                 })
-                .collect()
+                .collect::<Vec<_>>();
+                
+            // Return the suggestions without selecting any (don't auto-select on tab)
+            // When the user selects one, it will replace just the text after '@'
+            suggestions
         } else {
             vec![]
         }
