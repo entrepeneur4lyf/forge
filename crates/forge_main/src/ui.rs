@@ -89,7 +89,7 @@ impl<F: API> UI<F> {
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
         // Initialize terminal state management
         let terminal_guard = terminal::initialize()?;
-        
+
         // Parse CLI arguments first to get flags
         let env = api.environment();
         Ok(Self {
@@ -115,7 +115,7 @@ impl<F: API> UI<F> {
             self.chat(prompt).await?;
             return Ok(());
         }
-        
+
         // Display the banner in dimmed colors since we're in interactive mode
         banner::display()?;
 

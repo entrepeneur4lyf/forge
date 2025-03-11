@@ -15,15 +15,15 @@ async fn main() -> Result<()> {
         // Call the default panic handler
         default_panic(panic_info);
     }));
-    
+
     // Run with error handling
     let result = run().await;
-    
+
     // Ensure terminal state is restored in case of error
     if result.is_err() {
         let _ = restore_terminal();
     }
-    
+
     result
 }
 

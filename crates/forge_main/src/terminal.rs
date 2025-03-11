@@ -2,10 +2,8 @@ use std::io::{self, Result as IoResult};
 use std::sync::Mutex;
 
 use anyhow::Result;
-use crossterm::{
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
-};
+use crossterm::execute;
+use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -19,17 +17,16 @@ pub struct TerminalManager {
 
 impl TerminalManager {
     pub fn new() -> Self {
-        Self {
-            is_alt_screen: false,
-        }
+        Self { is_alt_screen: false }
     }
 
-    /// Save the current terminal state and set up the terminal for the application
+    /// Save the current terminal state and set up the terminal for the
+    /// application
     pub fn save_and_setup(&mut self) -> IoResult<()> {
         execute!(io::stdout(), EnterAlternateScreen)?;
         execute!(io::stdout(), crossterm::cursor::MoveTo(0, 0))?;
         self.is_alt_screen = true;
-        
+
         Ok(())
     }
 
