@@ -38,7 +38,6 @@ impl Completer for InputCompleter {
                         let file_name_lower = file_name.to_lowercase();
                         let query_lower = query.term.to_lowercase();
                         if file_name_lower.starts_with(&query_lower) {
-
                             let description = if file.path.len() > file_name.len() {
                                 Some(file.path.to_string())
                             } else {
