@@ -38,7 +38,6 @@ impl Completer for InputCompleter {
                         let file_name_lower = file_name.to_lowercase();
                         let query_lower = query.term.to_lowercase();
                         if file_name_lower.starts_with(&query_lower) {
-                            let replacement_value = file_name.to_string();
 
                             let description = if file.path.len() > file_name.len() {
                                 Some(file.path.to_string())
@@ -46,7 +45,7 @@ impl Completer for InputCompleter {
                                 None
                             };
                             Some(Suggestion {
-                                value: replacement_value,
+                                value: file.path,
                                 description,
                                 style: None,
                                 extra: None,
