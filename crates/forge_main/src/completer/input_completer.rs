@@ -31,7 +31,7 @@ impl Completer for InputCompleter {
 
         if let Some(query) = SearchTerm::new(line, pos).process() {
             let files = self.walker.get_blocking().unwrap_or_default();
-            let suggestions = files
+            files
                 .into_iter()
                 .filter_map(|file| {
                     if let Some(file_name) = file.file_name.as_ref() {
@@ -60,11 +60,7 @@ impl Completer for InputCompleter {
                         None
                     }
                 })
-                .collect::<Vec<_>>();
-                
-            // Return the suggestions without selecting any (don't auto-select on tab)
-            // When the user selects one, it will replace just the text after '@'
-            suggestions
+                .collect::<Vec<_>>()
         } else {
             vec![]
         }
