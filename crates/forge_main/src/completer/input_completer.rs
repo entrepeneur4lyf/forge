@@ -41,7 +41,7 @@ impl Completer for InputCompleter {
                             let replacement_value = file_name.to_string();
 
                             let description = if file.path.len() > file_name.len() {
-                                Some(format!("{}", file.path))
+                                Some(file.path.to_string())
                             } else {
                                 None
                             };
