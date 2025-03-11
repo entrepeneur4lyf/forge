@@ -18,12 +18,8 @@ async fn main() -> Result<()> {
 
     // Run with error handling
     let result = run().await;
-
-    // Ensure terminal state is restored in case of error
-    if result.is_err() {
-        let _ = restore_terminal();
-    }
-
+    let _ = restore_terminal();
+    
     result
 }
 
