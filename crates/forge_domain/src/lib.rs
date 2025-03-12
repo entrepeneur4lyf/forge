@@ -28,6 +28,7 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod workflow;
+mod executable;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -35,6 +36,7 @@ pub use chat_response::*;
 pub use context::*;
 pub use conversation::*;
 pub use env::*;
+pub use executable::*;
 pub use error::*;
 pub use event::*;
 pub use file::*;
@@ -69,7 +71,7 @@ pub trait ProviderService: Send + Sync + 'static {
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
     // TODO: should take `call` by reference
-    async fn call(&self, call: ToolCallFull) -> ToolResult;
+    async fn call(&self, call: ToolCallFull, exec: &mut Option<Executor>) -> ToolResult;
     fn list(&self) -> Vec<ToolDefinition>;
     fn usage_prompt(&self) -> String;
 }

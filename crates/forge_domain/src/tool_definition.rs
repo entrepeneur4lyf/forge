@@ -7,6 +7,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::{NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
+use crate::executable::Executor;
 
 ///
 /// Refer to the specification over here:
@@ -121,9 +122,14 @@ pub trait ToolDescription {
     fn description(&self) -> String;
 }
 
+pub enum ToolOutput {
+    Text(String),
+    Executor(Executor),
+}
+
 #[async_trait::async_trait]
 pub trait ExecutableTool {
     type Input: DeserializeOwned;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String>;
+    async fn call(&self, input: Self::Input, executor: Option<&Executor>) -> anyhow::Result<ToolOutput>;
 }

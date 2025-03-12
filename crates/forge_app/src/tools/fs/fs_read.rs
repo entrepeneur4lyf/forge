@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, Executor, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -33,7 +33,7 @@ impl NamedTool for FSRead {
 impl ExecutableTool for FSRead {
     type Input = FSReadInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -61,7 +61,7 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
+            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, )
             .await
             .unwrap();
 
@@ -75,7 +75,7 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() })
+            .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() }, )
             .await;
 
         assert!(result.is_err());
@@ -89,7 +89,7 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
+            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, )
             .await
             .unwrap();
 
@@ -105,7 +105,7 @@ mod test {
     async fn test_fs_read_relative_path() {
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: "relative/path.txt".to_string() })
+            .call(FSReadInput { path: "relative/path.txt".to_string() }, )
             .await;
 
         assert!(result.is_err());

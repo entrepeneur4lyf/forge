@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{Executor, Tool, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, ToolService};
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
@@ -21,7 +21,7 @@ impl ForgeToolService {
 }
 
 impl FromIterator<Tool> for ForgeToolService {
-    fn from_iter<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item=Tool>>(iter: T) -> Self {
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
@@ -33,7 +33,7 @@ impl FromIterator<Tool> for ForgeToolService {
 
 #[async_trait::async_trait]
 impl ToolService for ForgeToolService {
-    async fn call(&self, call: ToolCallFull) -> ToolResult {
+    async fn call(&self, call: ToolCallFull, executor: &mut Option<Executor>) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
@@ -47,7 +47,7 @@ impl ToolService for ForgeToolService {
         let output = match self.tools.get(&name) {
             Some(tool) => {
                 // Wrap tool call with timeout
-                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input)).await {
+                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input, executor.as_ref())).await {
                     Ok(result) => result,
                     Err(_) => Err(anyhow::anyhow!(
                         "Tool '{}' timed out after {} minutes",
@@ -64,7 +64,15 @@ impl ToolService for ForgeToolService {
         };
 
         let result = match output {
-            Ok(output) => ToolResult::from(call).success(output),
+            Ok(ToolOutput::Text(output)) => ToolResult::from(call).success(output),
+            Ok(ToolOutput::Executor(mut exec)) => {
+                let res = match exec.execute(None) {
+                    Ok(output) => ToolResult::from(call).success(output),
+                    Err(e) => ToolResult::from(call).failure(e),
+                };
+                *executor = Some(exec);
+                res
+            }
             Err(output) => {
                 error!(error = ?output, "Tool call failed");
                 ToolResult::from(call).failure(output)
@@ -108,7 +116,7 @@ impl ToolService for ForgeToolService {
 #[cfg(test)]
 mod test {
     use anyhow::bail;
-    use forge_domain::{Tool, ToolCallId, ToolDefinition};
+    use forge_domain::{ExecutableTool, Tool, ToolCallId, ToolDefinition, ToolOutput};
     use serde_json::{json, Value};
     use tokio::time;
 
@@ -120,8 +128,8 @@ mod test {
     impl forge_domain::ExecutableTool for SuccessTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
-            Ok(format!("Success with input: {}", input))
+        async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+            Ok(ToolOutput::Text(format!("Success with input: {}", input)))
         }
     }
 
@@ -131,7 +139,7 @@ mod test {
     impl forge_domain::ExecutableTool for FailureTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> anyhow::Result<String> {
+        async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
             bail!("Tool call failed with simulated failure".to_string())
         }
     }
@@ -205,10 +213,10 @@ mod test {
     impl forge_domain::ExecutableTool for SlowTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> anyhow::Result<String> {
+        async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(400)).await;
-            Ok("Slow tool completed".to_string())
+            Ok(ToolOutput::Text("Slow tool completed".to_string()))
         }
     }
 

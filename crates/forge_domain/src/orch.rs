@@ -173,6 +173,7 @@ impl<A: App> Orchestrator<A> {
         &self,
         agent_id: &AgentId,
         tool_call: &ToolCallFull,
+        executor: &mut Option<Executor>,
     ) -> anyhow::Result<Option<ToolResult>> {
         if let Some(event) = Event::parse(tool_call) {
             self.send(agent_id, ChatResponse::Custom(event.clone()))
@@ -181,7 +182,7 @@ impl<A: App> Orchestrator<A> {
             self.dispatch(&event).await?;
             Ok(None)
         } else {
-            Ok(Some(self.app.tool_service().call(tool_call.clone()).await))
+            Ok(Some(self.app.tool_service().call(tool_call.clone(), executor).await))
         }
     }
 
@@ -331,7 +332,7 @@ impl<A: App> Orchestrator<A> {
         }
 
         self.set_context(&agent.id, context.clone()).await?;
-
+        let mut executor = None;
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
             self.set_context(&agent.id, context.clone()).await?;
@@ -354,7 +355,7 @@ impl<A: App> Orchestrator<A> {
             for tool_call in tool_calls.iter() {
                 self.send(&agent.id, ChatResponse::ToolCallStart(tool_call.clone()))
                     .await?;
-                if let Some(tool_result) = self.execute_tool(&agent.id, tool_call).await? {
+                if let Some(tool_result) = self.execute_tool(&agent.id, tool_call, &mut executor).await? {
                     tool_results.push(tool_result.clone());
                     self.send(&agent.id, ChatResponse::ToolCallEnd(tool_result))
                         .await?;
