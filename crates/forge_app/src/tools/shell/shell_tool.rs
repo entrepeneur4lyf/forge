@@ -8,7 +8,6 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 
 use super::executor::Output;
-use crate::tools::shell::executor::CommandExecutor;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -81,7 +80,7 @@ impl NamedTool for Shell {
 impl ExecutableTool for Shell {
     type Input = ShellInput;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         // Validate empty command
         if input.command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace".to_string());

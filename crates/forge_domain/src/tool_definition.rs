@@ -131,5 +131,5 @@ pub enum ToolOutput {
 pub trait ExecutableTool {
     type Input: DeserializeOwned;
 
-    async fn call(&self, input: Self::Input, executor: Option<&Executor>) -> anyhow::Result<ToolOutput>;
+    async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput>;
 }

@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use forge_domain::{ExecutableTool, Executor, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, Executor, NamedTool, ToolDescription, ToolName, ToolOutput};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -33,13 +33,13 @@ impl NamedTool for FSRead {
 impl ExecutableTool for FSRead {
     type Input = FSReadInput;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        tokio::fs::read_to_string(path)
+        Ok(ToolOutput::Text(tokio::fs::read_to_string(path)
             .await
-            .with_context(|| format!("Failed to read file content from {}", input.path))
+            .with_context(|| format!("Failed to read file content from {}", input.path))?))
     }
 }
 

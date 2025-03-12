@@ -35,6 +35,8 @@ agents:
       - tool_forge_fs_remove
       - tool_forge_fs_patch
       - tool_forge_process_shell
+      - tool_forge_shell_input
+      - tool_forge_shell_exit
       - tool_forge_net_fetch
       - tool_forge_fs_search
     subscribe:

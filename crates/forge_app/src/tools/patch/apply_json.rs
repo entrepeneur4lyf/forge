@@ -244,7 +244,7 @@ fn format_output(path: &str, content: &str, warning: Option<&str>) -> String {
 impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
     type Input = Input;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -289,7 +289,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
         );
 
         // Return the final result
-        Ok(result)
+        Ok(ToolOutput::Text(result))
     }
 }
 

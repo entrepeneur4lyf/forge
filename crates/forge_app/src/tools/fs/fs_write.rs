@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use bytes::Bytes;
 use forge_display::DiffFormat;
-use forge_domain::{ExecutableTool, Executor, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, Executor, NamedTool, ToolDescription, ToolName, ToolOutput};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -53,7 +53,7 @@ impl<F> NamedTool for FSWrite<F> {
 impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
     type Input = FSWriteInput;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -114,7 +114,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
         let diff = DiffFormat::format(title, path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
 
-        Ok(result)
+        Ok(ToolOutput::Text(result))
     }
 }
 

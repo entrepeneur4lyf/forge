@@ -54,7 +54,7 @@ impl NamedTool for FSSearch {
 impl ExecutableTool for FSSearch {
     type Input = FSSearchInput;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 

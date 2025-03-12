@@ -32,7 +32,7 @@ impl NamedTool for FSFileInfo {
 impl ExecutableTool for FSFileInfo {
     type Input = FSFileInfoInput;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 

@@ -18,9 +18,9 @@ where
 {
     type Input = Value;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         let input: T::Input = serde_json::from_value(input)?;
-        self.0.call(input, ).await
+        self.0.call(input, executor).await
     }
 }
 

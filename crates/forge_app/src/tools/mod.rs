@@ -16,6 +16,7 @@ use shell::Shell;
 use think::Think;
 
 use crate::{EnvironmentService, Infrastructure};
+use crate::tools::shell::{ShellExitTool, ShellInputTool};
 
 pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
     let env = infra.environment_service().get_environment();
@@ -31,6 +32,8 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
         Shell::new(env.clone()).into(),
         Think::default().into(),
         Fetch::default().into(),
+        ShellInputTool.into(),
+        ShellExitTool.into(),
     ]
 }
 

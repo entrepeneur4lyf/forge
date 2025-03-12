@@ -39,7 +39,7 @@ impl NamedTool for FSList {
 impl ExecutableTool for FSList {
     type Input = FSListInput;
 
-    async fn call(&self, input: Self::Input, option: Option<&Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
@@ -80,11 +80,11 @@ impl ExecutableTool for FSList {
             }
         }
 
-        Ok(format!(
+        Ok(ToolOutput::Text(format!(
             "<file_list path=\"{}\">\n{}\n</file_list>",
             input.path,
             paths.join("\n")
-        ))
+        )))
     }
 }
 
