@@ -1,9 +1,8 @@
 use anyhow::{Context, Result};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{timeout, Duration};
-use tokio::io::AsyncReadExt;
 
 pub enum ExecutionResult {
     Error,
@@ -31,37 +30,51 @@ impl Executor {
         let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().context("Failed to open stdout")?);
         let stderr = BufReader::new(child.stderr.take().context("Failed to open stderr")?);
-        
+
         let (stdout_tx, stdout_rx) = tokio::sync::mpsc::channel(100);
         let (stderr_tx, stderr_rx) = tokio::sync::mpsc::channel(100);
-        
+
         // Spawn tasks to handle stdout and stderr
         Self::spawn_reader_task(stdout, stdout_tx);
         Self::spawn_reader_task(stderr, stderr_tx);
-        
+
         Ok(Self { child, stdin, stdout_rx, stderr_rx })
     }
 
-    pub async fn execute(&mut self, input: Option<String>, timeout_secs: Option<u64>) -> Result<String> {
+    pub async fn execute(
+        &mut self,
+        input: Option<String>,
+        timeout_secs: Option<u64>,
+    ) -> Result<String> {
         if let Some(ref mut stdin) = self.stdin {
             if let Some(input) = input {
-                stdin.write_all(format!("{}\n", input).as_bytes()).await.context("Failed to write to stdin")?;
+                stdin
+                    .write_all(format!("{}\n", input).as_bytes())
+                    .await
+                    .context("Failed to write to stdin")?;
                 stdin.flush().await.context("Failed to flush stdin")?;
             }
         }
 
         // Use a timeout for interactive commands to prevent hanging
-        let timeout_duration = timeout_secs.map(Duration::from_secs).unwrap_or(Duration::from_secs(1));
-        
-        let stdout = Self::collect_output_with_timeout(&mut self.stdout_rx, timeout_duration).await?;
-        let stderr = Self::collect_output_with_timeout(&mut self.stderr_rx, timeout_duration).await?;
+        let timeout_duration = timeout_secs
+            .map(Duration::from_secs)
+            .unwrap_or(Duration::from_secs(1));
+
+        let stdout =
+            Self::collect_output_with_timeout(&mut self.stdout_rx, timeout_duration).await?;
+        let stderr =
+            Self::collect_output_with_timeout(&mut self.stderr_rx, timeout_duration).await?;
 
         let resp = format!("<stdout>{}</stdout><stderr>{}</stderr>", stdout, stderr);
 
         Ok(resp)
     }
 
-    async fn collect_output_with_timeout(rx: &mut Receiver<ExecutionResult>, timeout_duration: Duration) -> anyhow::Result<String> {
+    async fn collect_output_with_timeout(
+        rx: &mut Receiver<ExecutionResult>,
+        timeout_duration: Duration,
+    ) -> anyhow::Result<String> {
         let mut output = String::new();
 
         // Keep receiving until timeout with no data
@@ -90,11 +103,15 @@ impl Executor {
 
     pub async fn exit(&mut self) -> Result<()> {
         drop(self.stdin.take());
-        let _status = self.child.wait().await.context("Failed to wait for process exit")?;
+        let _status = self
+            .child
+            .wait()
+            .await
+            .context("Failed to wait for process exit")?;
         Ok(())
     }
 
-    fn spawn_reader_task<R>(mut reader: BufReader<R>, tx: Sender<ExecutionResult>) 
+    fn spawn_reader_task<R>(mut reader: BufReader<R>, tx: Sender<ExecutionResult>)
     where
         R: AsyncReadExt + Unpin + Send + 'static,
     {
@@ -110,14 +127,19 @@ impl Executor {
                     }
                     Ok(_) => {
                         // Successfully read data, send it if channel is still open
-                        if tx.send(ExecutionResult::Text(line_buffer.clone())).await.is_err() {
+                        if tx
+                            .send(ExecutionResult::Text(line_buffer.clone()))
+                            .await
+                            .is_err()
+                        {
                             // Receiver was dropped, exit the task
                             break;
                         }
-                        
+
                         // Check if there's more data available
-                        // Note: tokio's BufReader doesn't expose buffer contents, so we use a slightly 
-                        // different approach here than the original
+                        // Note: tokio's BufReader doesn't expose buffer contents, so we use a
+                        // slightly different approach here than the
+                        // original
                         if tx.send(ExecutionResult::Complete).await.is_err() {
                             break;
                         }
@@ -151,7 +173,11 @@ mod tests {
         };
 
         let executor = Executor::new(cmd).await;
-        assert!(executor.is_ok(), "Failed to create executor: {:?}", executor.err());
+        assert!(
+            executor.is_ok(),
+            "Failed to create executor: {:?}",
+            executor.err()
+        );
     }
 
     #[tokio::test]
@@ -168,17 +194,17 @@ mod tests {
         };
 
         let mut executor = Executor::new(cmd).await.expect("Failed to create executor");
-        
+
         // Execute the command with a 2-second timeout
         let result = executor.execute(None, Some(2)).await;
-        
+
         assert!(result.is_ok(), "Execute failed: {:?}", result.err());
         let output = result.unwrap();
-        
+
         // On Windows, the output might have different line endings or formatting
         assert!(
-            output.contains("Hello, World!"), 
-            "Expected output to contain 'Hello, World!', got: {}", 
+            output.contains("Hello, World!"),
+            "Expected output to contain 'Hello, World!', got: {}",
             output
         );
     }
@@ -188,7 +214,10 @@ mod tests {
         // Create a command that reads from stdin
         let cmd = if cfg!(target_os = "windows") {
             let mut cmd = tokio::process::Command::new("cmd");
-            cmd.args(["/C", "set /p input=Enter input: && echo You entered: %input%"]);
+            cmd.args([
+                "/C",
+                "set /p input=Enter input: && echo You entered: %input%",
+            ]);
             cmd
         } else {
             let mut cmd = tokio::process::Command::new("sh");
@@ -197,16 +226,22 @@ mod tests {
         };
 
         let mut executor = Executor::new(cmd).await.expect("Failed to create executor");
-        
+
         // Send input to the command with a timeout of 2 seconds
-        let result = executor.execute(Some("test input".to_string()), Some(2)).await;
-        
-        assert!(result.is_ok(), "Execute with input failed: {:?}", result.err());
-        let output = result.unwrap();
-        
+        let result = executor
+            .execute(Some("test input".to_string()), Some(2))
+            .await;
+
         assert!(
-            output.contains("You entered: test input") || output.contains("test input"), 
-            "Expected output to indicate the input 'test input', got: {}", 
+            result.is_ok(),
+            "Execute with input failed: {:?}",
+            result.err()
+        );
+        let output = result.unwrap();
+
+        assert!(
+            output.contains("You entered: test input") || output.contains("test input"),
+            "Expected output to indicate the input 'test input', got: {}",
             output
         );
     }
@@ -225,88 +260,92 @@ mod tests {
         };
 
         let mut executor = Executor::new(cmd).await.expect("Failed to create executor");
-        
+
         // Execute the command with a 2-second timeout
         let result = executor.execute(None, Some(2)).await;
-        
+
         assert!(result.is_ok(), "Execute failed: {:?}", result.err());
         let output = result.unwrap();
-        
+
         assert!(
-            output.contains("Error message"), 
-            "Expected output to contain the error message, got: {}", 
+            output.contains("Error message"),
+            "Expected output to contain the error message, got: {}",
             output
         );
     }
-    
+
     #[tokio::test]
     async fn test_executor_exit() {
         // Create a moderate-duration command for testing exit functionality
         let cmd = if cfg!(target_os = "windows") {
             let mut cmd = tokio::process::Command::new("cmd");
-            cmd.args(["/C", "ping localhost -n 2 > nul"]);  // Runs for about 1 second
+            cmd.args(["/C", "ping localhost -n 2 > nul"]); // Runs for about 1 second
             cmd
         } else {
             let mut cmd = tokio::process::Command::new("sh");
-            cmd.args(["-c", "sleep 1"]);  // Runs for 1 second
+            cmd.args(["-c", "sleep 1"]); // Runs for 1 second
             cmd
         };
 
         let mut executor = Executor::new(cmd).await.expect("Failed to create executor");
-        
+
         // Exit the command early
         let result = executor.exit().await;
-        
-        assert!(result.is_ok(), "Failed to exit the command: {:?}", result.err());
-        
+
+        assert!(
+            result.is_ok(),
+            "Failed to exit the command: {:?}",
+            result.err()
+        );
+
         // Try to execute the command after exit (should fail or return empty)
         let execute_after_exit = executor.execute(None, Some(1)).await;
-        
-        // The execute might not fail but should return empty stdout/stderr since the process exited
+
+        // The execute might not fail but should return empty stdout/stderr since the
+        // process exited
         if let Ok(output) = execute_after_exit {
             assert!(
-                output == "<stdout></stdout><stderr></stderr>" || 
-                output.contains("</stdout>"), 
-                "Expected empty output after exit, got: {}", 
+                output == "<stdout></stdout><stderr></stderr>" || output.contains("</stdout>"),
+                "Expected empty output after exit, got: {}",
                 output
             );
         }
     }
-    
+
     #[tokio::test]
     async fn test_timeout_behavior() {
         // Create a command that takes longer than our timeout
         let cmd = if cfg!(target_os = "windows") {
             let mut cmd = tokio::process::Command::new("cmd");
-            cmd.args(["/C", "ping localhost -n 5 > nul && echo Done"]);  // Takes ~5 seconds
+            cmd.args(["/C", "ping localhost -n 5 > nul && echo Done"]); // Takes ~5 seconds
             cmd
         } else {
             let mut cmd = tokio::process::Command::new("sh");
-            cmd.args(["-c", "sleep 5 && echo 'Done'"]);  // Takes 5 seconds
+            cmd.args(["-c", "sleep 5 && echo 'Done'"]); // Takes 5 seconds
             cmd
         };
 
         let mut executor = Executor::new(cmd).await.expect("Failed to create executor");
-        
+
         // Execute with a timeout shorter than the command duration
         let start = std::time::Instant::now();
-        let result = executor.execute(None, Some(1)).await;  // 1 second timeout
+        let result = executor.execute(None, Some(1)).await; // 1 second timeout
         let duration = start.elapsed();
-        
+
         assert!(result.is_ok(), "Execute failed: {:?}", result.err());
-        
+
         // The timeout should have triggered, meaning we didn't wait the full 5 seconds
         assert!(
-            duration < std::time::Duration::from_secs(4), 
-            "Expected timeout to trigger before 4 seconds, took: {:?}", 
+            duration < std::time::Duration::from_secs(4),
+            "Expected timeout to trigger before 4 seconds, took: {:?}",
             duration
         );
-        
+
         // Since the command was still running, we shouldn't see the "Done" output
         let output = result.unwrap();
         assert!(
-            !output.contains("Done"), 
-            "Expected output to not contain 'Done' due to timeout, got: {}", 
+            !output.contains("Done"),
+            "Expected output to not contain 'Done' due to timeout, got: {}",
             output
         );
     }
