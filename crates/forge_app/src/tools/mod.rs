@@ -73,6 +73,7 @@ mod tests {
         }
     }
 
+    #[derive(Clone)]
     struct Stub {
         env: Environment,
     }

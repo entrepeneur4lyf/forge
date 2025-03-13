@@ -12,8 +12,9 @@ use crate::Infrastructure;
 // Timeout duration for tool calls
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
+#[derive(Clone)]
 pub struct ForgeToolService {
-    tools: HashMap<ToolName, Tool>,
+    tools: Arc<HashMap<ToolName, Tool>>,
 }
 
 impl ForgeToolService {
@@ -29,7 +30,7 @@ impl FromIterator<Tool> for ForgeToolService {
             .map(|tool| (tool.definition.name.clone(), tool))
             .collect::<HashMap<_, _>>();
 
-        Self { tools }
+        Self { tools: Arc::new(tools) }
     }
 }
 
