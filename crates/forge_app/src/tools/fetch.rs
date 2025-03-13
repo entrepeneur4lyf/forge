@@ -148,7 +148,11 @@ impl Fetch {
 impl ExecutableTool for Fetch {
     type Input = FetchInput;
 
-    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput> {
         let url = Url::parse(&input.url)
             .with_context(|| format!("Failed to parse URL: {}", input.url))?;
 
@@ -158,7 +162,9 @@ impl ExecutableTool for Fetch {
         let start_index = input.start_index.unwrap_or(0);
 
         if start_index >= original_length {
-            return Ok(ToolOutput::Text("<error>No more content available.</error>".to_string()));
+            return Ok(ToolOutput::Text(
+                "<error>No more content available.</error>".to_string(),
+            ));
         }
 
         let max_length = input.max_length.unwrap_or(40000);
@@ -172,7 +178,10 @@ impl ExecutableTool for Fetch {
             ));
         }
 
-        Ok(ToolOutput::Text(format!("{}Contents of {}:\n{}", prefix, url, truncated)))
+        Ok(ToolOutput::Text(format!(
+            "{}Contents of {}:\n{}",
+            prefix, url, truncated
+        )))
     }
 }
 

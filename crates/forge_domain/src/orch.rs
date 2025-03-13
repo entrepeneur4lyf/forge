@@ -182,7 +182,12 @@ impl<A: App> Orchestrator<A> {
             self.dispatch(&event).await?;
             Ok(None)
         } else {
-            Ok(Some(self.app.tool_service().call(tool_call.clone(), executor).await))
+            Ok(Some(
+                self.app
+                    .tool_service()
+                    .call(tool_call.clone(), executor)
+                    .await,
+            ))
         }
     }
 
@@ -361,7 +366,10 @@ impl<A: App> Orchestrator<A> {
             for tool_call in tool_calls.iter() {
                 self.send(&agent.id, ChatResponse::ToolCallStart(tool_call.clone()))
                     .await?;
-                if let Some(tool_result) = self.execute_tool(&agent.id, tool_call, &mut executor).await? {
+                if let Some(tool_result) = self
+                    .execute_tool(&agent.id, tool_call, &mut executor)
+                    .await?
+                {
                     tool_results.push(tool_result.clone());
                     self.send(&agent.id, ChatResponse::ToolCallEnd(tool_result))
                         .await?;

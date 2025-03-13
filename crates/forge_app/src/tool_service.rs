@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{Executor, Tool, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, ToolService};
+use forge_domain::{
+    Executor, Tool, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, ToolService,
+};
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
@@ -21,7 +23,7 @@ impl ForgeToolService {
 }
 
 impl FromIterator<Tool> for ForgeToolService {
-    fn from_iter<T: IntoIterator<Item=Tool>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
@@ -47,7 +49,12 @@ impl ToolService for ForgeToolService {
         let output = match self.tools.get(&name) {
             Some(tool) => {
                 // Wrap tool call with timeout
-                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input, executor.as_mut())).await {
+                match timeout(
+                    TOOL_CALL_TIMEOUT,
+                    tool.executable.call(input, executor.as_mut()),
+                )
+                .await
+                {
                     Ok(result) => result,
                     Err(_) => Err(anyhow::anyhow!(
                         "Tool '{}' timed out after {} minutes",
@@ -124,7 +131,11 @@ mod test {
     impl forge_domain::ExecutableTool for SuccessTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+        async fn call(
+            &self,
+            input: Self::Input,
+            _: Option<&mut Executor>,
+        ) -> anyhow::Result<ToolOutput> {
             Ok(ToolOutput::Text(format!("Success with input: {}", input)))
         }
     }
@@ -135,7 +146,11 @@ mod test {
     impl forge_domain::ExecutableTool for FailureTool {
         type Input = Value;
 
-        async fn call(&self, _: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+        async fn call(
+            &self,
+            _: Self::Input,
+            _: Option<&mut Executor>,
+        ) -> anyhow::Result<ToolOutput> {
             bail!("Tool call failed with simulated failure".to_string())
         }
     }
@@ -209,7 +224,11 @@ mod test {
     impl forge_domain::ExecutableTool for SlowTool {
         type Input = Value;
 
-        async fn call(&self, _: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+        async fn call(
+            &self,
+            _: Self::Input,
+            _: Option<&mut Executor>,
+        ) -> anyhow::Result<ToolOutput> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(400)).await;
             Ok(ToolOutput::Text("Slow tool completed".to_string()))

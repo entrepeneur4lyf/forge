@@ -33,13 +33,19 @@ impl NamedTool for FSRead {
 impl ExecutableTool for FSRead {
     type Input = FSReadInput;
 
-    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        Ok(ToolOutput::Text(tokio::fs::read_to_string(path)
-            .await
-            .with_context(|| format!("Failed to read file content from {}", input.path))?))
+        Ok(ToolOutput::Text(
+            tokio::fs::read_to_string(path)
+                .await
+                .with_context(|| format!("Failed to read file content from {}", input.path))?,
+        ))
     }
 }
 
@@ -61,7 +67,10 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, None)
+            .call(
+                FSReadInput { path: file_path.to_string_lossy().to_string() },
+                None,
+            )
             .await
             .unwrap();
 
@@ -75,7 +84,10 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() }, None)
+            .call(
+                FSReadInput { path: nonexistent_file.to_string_lossy().to_string() },
+                None,
+            )
             .await;
 
         assert!(result.is_err());
@@ -89,7 +101,10 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, None)
+            .call(
+                FSReadInput { path: file_path.to_string_lossy().to_string() },
+                None,
+            )
             .await
             .unwrap();
 

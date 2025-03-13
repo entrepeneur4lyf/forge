@@ -54,7 +54,11 @@ impl NamedTool for FSSearch {
 impl ExecutableTool for FSSearch {
     type Input = FSSearchInput;
 
-    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
@@ -165,12 +169,13 @@ mod test {
 
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            regex: "test".to_string(),
-                            file_pattern: None,
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -195,12 +200,13 @@ mod test {
 
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            regex: "test".to_string(),
-                            file_pattern: Some("*.rs".to_string()),
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: "test".to_string(),
+                    file_pattern: Some("*.rs".to_string()),
+                },
+                None,
             )
             .await
             .unwrap();
@@ -222,12 +228,13 @@ mod test {
 
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            regex: "test".to_string(),
-                            file_pattern: None,
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -257,12 +264,13 @@ mod test {
 
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            regex: "test".to_string(),
-                            file_pattern: None,
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -288,12 +296,13 @@ mod test {
 
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            regex: "test".to_string(),
-                            file_pattern: None,
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -315,12 +324,13 @@ mod test {
 
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            regex: "nonexistent".to_string(),
-                            file_pattern: None,
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: "nonexistent".to_string(),
+                    file_pattern: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -335,12 +345,13 @@ mod test {
 
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            regex: "[invalid".to_string(),
-                            file_pattern: None,
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: "[invalid".to_string(),
+                    file_pattern: None,
+                },
+                None,
             )
             .await;
 
@@ -355,12 +366,13 @@ mod test {
     async fn test_fs_search_relative_path() {
         let fs_search = FSSearch;
         let result = fs_search
-            .call(FSSearchInput {
-                            path: "relative/path".to_string(),
-                            regex: "test".to_string(),
-                            file_pattern: None,
-                        },
-                  None
+            .call(
+                FSSearchInput {
+                    path: "relative/path".to_string(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+                None,
             )
             .await;
 

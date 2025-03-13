@@ -6,8 +6,8 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::{NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
 use crate::executable::Executor;
+use crate::{NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
 
 ///
 /// Refer to the specification over here:
@@ -132,7 +132,7 @@ impl ToolOutput {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             ToolOutput::Text(s) => Some(s),
-            ToolOutput::Executor(_) => None
+            ToolOutput::Executor(_) => None,
         }
     }
 }
@@ -141,5 +141,9 @@ impl ToolOutput {
 pub trait ExecutableTool {
     type Input: DeserializeOwned;
 
-    async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput>;
+    async fn call(
+        &self,
+        input: Self::Input,
+        executor: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput>;
 }

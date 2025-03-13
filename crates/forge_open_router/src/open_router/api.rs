@@ -65,7 +65,7 @@ impl OpenRouter {
             .model(model.clone())
             .stream(true);
         request = ProviderPipeline::new(&self.provider).transform(request);
-/*        if let Some(tools) = request.tools.as_ref() {
+        /*        if let Some(tools) = request.tools.as_ref() {
             if tools.len() > 7 {
                 println!("Tools: {:#?}", tools[7]);
             }

@@ -15,8 +15,8 @@ use patch::*;
 use shell::Shell;
 use think::Think;
 
-use crate::{EnvironmentService, Infrastructure};
 use crate::tools::shell::{ShellExitTool, ShellInputTool};
+use crate::{EnvironmentService, Infrastructure};
 
 pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
     let env = infra.environment_service().get_environment();

@@ -32,7 +32,11 @@ impl NamedTool for FSFileInfo {
 impl ExecutableTool for FSFileInfo {
     type Input = FSFileInfoInput;
 
-    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -58,7 +62,10 @@ mod test {
 
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: file_path.to_string_lossy().to_string() }, None)
+            .call(
+                FSFileInfoInput { path: file_path.to_string_lossy().to_string() },
+                None,
+            )
             .await
             .unwrap();
         let result = result.as_str().unwrap();
@@ -76,7 +83,10 @@ mod test {
 
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: dir_path.to_string_lossy().to_string() }, None)
+            .call(
+                FSFileInfoInput { path: dir_path.to_string_lossy().to_string() },
+                None,
+            )
             .await
             .unwrap();
         let result = result.as_str().unwrap();
@@ -92,7 +102,10 @@ mod test {
 
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: nonexistent_path.to_string_lossy().to_string() }, None)
+            .call(
+                FSFileInfoInput { path: nonexistent_path.to_string_lossy().to_string() },
+                None,
+            )
             .await;
 
         assert!(result.is_err());
@@ -102,7 +115,10 @@ mod test {
     async fn test_fs_file_info_relative_path() {
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: "relative/path.txt".to_string() }, None)
+            .call(
+                FSFileInfoInput { path: "relative/path.txt".to_string() },
+                None,
+            )
             .await;
 
         assert!(result.is_err());

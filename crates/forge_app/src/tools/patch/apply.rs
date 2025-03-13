@@ -152,7 +152,11 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 impl<T: Infrastructure> ExecutableTool for ApplyPatch<T> {
     type Input = ApplyPatchInput;
 
-    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -262,11 +266,12 @@ mod test {
 
         let fs_replace = ApplyPatch::new(Arc::new(MockInfrastructure::new()));
         let result = fs_replace
-            .call(ApplyPatchInput {
-                            path: nonexistent.to_string_lossy().to_string(),
-                            diff: format!("{SEARCH}\nHello\n{DIVIDER}\nWorld\n{REPLACE}\n"),
-                        },
-                  None,
+            .call(
+                ApplyPatchInput {
+                    path: nonexistent.to_string_lossy().to_string(),
+                    diff: format!("{SEARCH}\nHello\n{DIVIDER}\nWorld\n{REPLACE}\n"),
+                },
+                None,
             )
             .await;
 
@@ -283,14 +288,15 @@ mod test {
 
         let fs_replace = ApplyPatch::new(infra.clone());
         let result = fs_replace
-            .call(ApplyPatchInput {
-                            path: file_path.to_string_lossy().to_string(),
-                            diff: format!(
-                                "{SEARCH}\n    Hello World    \n{DIVIDER}\n    Hi World    \n{REPLACE}\n"
-                            )
-                            .to_string(),
-                        },
-                  None,
+            .call(
+                ApplyPatchInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    diff: format!(
+                        "{SEARCH}\n    Hello World    \n{DIVIDER}\n    Hi World    \n{REPLACE}\n"
+                    )
+                    .to_string(),
+                },
+                None,
             )
             .await
             .unwrap();
@@ -318,11 +324,12 @@ mod test {
 
         let fs_replace = ApplyPatch::new(infra.clone());
         let result = fs_replace
-            .call(ApplyPatchInput {
-                            path: file_path.to_string_lossy().to_string(),
-                            diff: format!("{SEARCH}\n{DIVIDER}\nNew content\n{REPLACE}\n").to_string(),
-                        },
-                  None,
+            .call(
+                ApplyPatchInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    diff: format!("{SEARCH}\n{DIVIDER}\nNew content\n{REPLACE}\n").to_string(),
+                },
+                None,
             )
             .await
             .unwrap();
@@ -353,7 +360,10 @@ mod test {
         let diff = format!("{SEARCH}\n    First Line    \n{DIVIDER}\n    New First    \n{REPLACE}\n{SEARCH}\n    Last Line    \n{DIVIDER}\n    New Last    \n{REPLACE}\n").to_string();
 
         let result = fs_replace
-            .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff }, None,)
+            .call(
+                ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff },
+                None,
+            )
             .await
             .unwrap();
 
@@ -383,7 +393,10 @@ mod test {
         let fs_replace = ApplyPatch::new(infra.clone());
         let diff = format!("{SEARCH}\n  Middle Line  \n{DIVIDER}\n{REPLACE}\n");
         let result = fs_replace
-            .call(ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff }, None,)
+            .call(
+                ApplyPatchInput { path: file_path.to_string_lossy().to_string(), diff },
+                None,
+            )
             .await
             .unwrap();
 
@@ -686,11 +699,12 @@ mod test {
     async fn test_patch_relative_path() {
         let fs_replace = ApplyPatch::new(Arc::new(MockInfrastructure::new()));
         let result = fs_replace
-            .call(ApplyPatchInput {
-                            path: "relative/path.txt".to_string(),
-                            diff: format!("{SEARCH}\ntest\n{DIVIDER}\nreplacement\n{REPLACE}\n"),
-                        },
-                  None,
+            .call(
+                ApplyPatchInput {
+                    path: "relative/path.txt".to_string(),
+                    diff: format!("{SEARCH}\ntest\n{DIVIDER}\nreplacement\n{REPLACE}\n"),
+                },
+                None,
             )
             .await;
 

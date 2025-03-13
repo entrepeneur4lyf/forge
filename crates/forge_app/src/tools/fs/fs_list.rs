@@ -39,7 +39,11 @@ impl NamedTool for FSList {
 impl ExecutableTool for FSList {
     type Input = FSListInput;
 
-    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
@@ -108,11 +112,12 @@ mod test {
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            },
-                  None,
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -135,11 +140,12 @@ mod test {
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            },
-                  None,
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -154,11 +160,12 @@ mod test {
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: nonexistent_dir.to_string_lossy().to_string(),
-                recursive: None,
-            },
-                  None,
+            .call(
+                FSListInput {
+                    path: nonexistent_dir.to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                None,
             )
             .await;
 
@@ -181,11 +188,12 @@ mod test {
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            },
-                  None,
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -218,11 +226,12 @@ mod test {
 
         // Test recursive listing
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: Some(true),
-            },
-                  None,
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: Some(true),
+                },
+                None,
             )
             .await
             .unwrap();
@@ -234,7 +243,10 @@ mod test {
     async fn test_fs_list_relative_path() {
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput { path: "relative/path".to_string(), recursive: None }, None)
+            .call(
+                FSListInput { path: "relative/path".to_string(), recursive: None },
+                None,
+            )
             .await;
 
         assert!(result.is_err());

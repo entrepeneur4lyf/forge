@@ -53,7 +53,11 @@ impl<F> NamedTool for FSWrite<F> {
 impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
     type Input = FSWriteInput;
 
-    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _: Option<&mut Executor>,
+    ) -> anyhow::Result<ToolOutput> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -151,12 +155,13 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let output = fs_write
-            .call(FSWriteInput {
-                            path: file_path.to_string_lossy().to_string(),
-                            content: content.to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -187,12 +192,13 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                            path: file_path.to_string_lossy().to_string(),
-                            content: "fn main() { let x = ".to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: "fn main() { let x = ".to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await;
 
@@ -210,12 +216,13 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let content = "fn main() { let x = 42; }";
         let result = fs_write
-            .call(FSWriteInput {
-                            path: file_path.to_string_lossy().to_string(),
-                            content: content.to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await;
 
@@ -249,12 +256,13 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                            path: nested_path.to_string_lossy().to_string(),
-                            content: content.to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: nested_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -292,12 +300,13 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                            path: deep_path.to_string_lossy().to_string(),
-                            content: content.to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: deep_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -337,12 +346,13 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                            path: path_str,
-                            content: content.to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: path_str,
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await
             .unwrap();
@@ -376,12 +386,13 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                            path: "relative/path/file.txt".to_string(),
-                            content: "test content".to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: "relative/path/file.txt".to_string(),
+                    content: "test content".to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await;
 
@@ -409,12 +420,13 @@ mod test {
         // Now attempt to write without overwrite flag
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                            path: file_path.to_string_lossy().to_string(),
-                            content: "New content".to_string(),
-                            overwrite: false,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: "New content".to_string(),
+                    overwrite: false,
+                },
+                None,
             )
             .await;
 
@@ -459,12 +471,13 @@ mod test {
         // Now attempt to write with overwrite flag
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                            path: file_path.to_string_lossy().to_string(),
-                            content: new_content.to_string(),
-                            overwrite: true,
-                        },
-                  None
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: new_content.to_string(),
+                    overwrite: true,
+                },
+                None,
             )
             .await;
 
