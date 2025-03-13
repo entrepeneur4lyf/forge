@@ -14,7 +14,7 @@ pub enum ExecutionResult {
 pub struct Executor {
     child: Child,
     stdin: Option<ChildStdin>,
-    stdout: BufReader<ChildStdout>,
+    stdout_rx: Receiver<ExecutionResult>,
 }
 
 impl Executor {
@@ -27,29 +27,30 @@ impl Executor {
 
         let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().context("Failed to open stdout")?);
-
-        Ok(Self { child, stdin, stdout })
+        let (stdout_tx, stdout_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _stdout_thread = Self::spawn_reader_thread(stdout, stdout_tx);
+        });
+        Ok(Self { child, stdin, stdout_rx })
     }
 
     pub fn execute(&mut self, input: Option<String>, timeout: Option<u64>) -> Result<String> {
-        let (stdout_tx, stdout_rx) = std::sync::mpsc::channel();
-
         if let Some(ref mut stdin) = self.stdin {
             if let Some(input) = input {
                 writeln!(stdin, "{}", input).context("Failed to write to stdin")?;
                 stdin.flush().context("Failed to flush stdin")?;
             }
         }
-        let _stdout_thread = self.spawn_reader_thread(stdout_tx);
 
         // Use a timeout for interactive commands to prevent hanging
         let timeout = timeout.map(Duration::from_secs).unwrap_or(Duration::from_secs(1));
-        let stdout = Self::collect_output_with_timeout(stdout_rx, timeout)?;
+        let stdout = Self::collect_output_with_timeout(&self.stdout_rx, timeout)?;
 
         Ok(format!("<stdout>{}</stdout>", stdout))
     }
 
-    fn collect_output_with_timeout(rx: Receiver<ExecutionResult>, timeout: Duration) -> anyhow::Result<String> {
+    // We don't need this function anymore.
+    fn collect_output_with_timeout(rx: &Receiver<ExecutionResult>, timeout: Duration) -> anyhow::Result<String> {
         let mut output = String::new();
         let mut received_data = false;
 
@@ -88,13 +89,13 @@ impl Executor {
     }
 
     fn spawn_reader_thread(
-        &mut self,
+        mut stdout: BufReader<ChildStdout>,
         tx: Sender<ExecutionResult>,
     ) {
         let mut line_buffer = String::new();
         loop {
             line_buffer.clear();
-            match self.stdout.read_line(&mut line_buffer) {
+            match stdout.read_line(&mut line_buffer) {
                 Ok(0) => {
                     // EOF reached - send Complete and break
                     let _ = tx.send(ExecutionResult::Complete);
@@ -106,10 +107,10 @@ impl Executor {
                         // Receiver was dropped, exit the thread
                         break;
                     }
-                    if self.stdout.buffer().is_empty() {
+                    if stdout.buffer().is_empty() {
                         // If buffer is empty, we've read all available data
                         let _ = tx.send(ExecutionResult::Complete);
-                        break;
+                        // break;
                     }
                 }
                 Err(_) => {
