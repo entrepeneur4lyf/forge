@@ -64,18 +64,10 @@ impl ToolService for ForgeToolService {
         };
 
         let result = match output {
-            Ok(ToolOutput::Text(output)) => {
-                // println!("output: {}", output);
-                ToolResult::from(call).success(output)
-            },
+            Ok(ToolOutput::Text(output)) => ToolResult::from(call).success(output),
             Ok(ToolOutput::Executor(exec)) => {
-                // println!("hx");
-                /*let res = match exec.execute(None) {
-                    Ok(output) => ToolResult::from(call).success(output),
-                    Err(e) => ToolResult::from(call).failure(e),
-                };*/
                 *executor = Some(exec);
-                ToolResult::from(call).success("Started program")
+                ToolResult::from(call).success("Successfully started the program.")
             }
             Err(output) => {
                 error!(error = ?output, "Tool call failed");
@@ -120,7 +112,7 @@ impl ToolService for ForgeToolService {
 #[cfg(test)]
 mod test {
     use anyhow::bail;
-    use forge_domain::{ExecutableTool, Tool, ToolCallId, ToolDefinition, ToolOutput};
+    use forge_domain::{Tool, ToolCallId, ToolDefinition, ToolOutput};
     use serde_json::{json, Value};
     use tokio::time;
 
@@ -132,7 +124,7 @@ mod test {
     impl forge_domain::ExecutableTool for SuccessTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+        async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
             Ok(ToolOutput::Text(format!("Success with input: {}", input)))
         }
     }
@@ -143,7 +135,7 @@ mod test {
     impl forge_domain::ExecutableTool for FailureTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+        async fn call(&self, _: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
             bail!("Tool call failed with simulated failure".to_string())
         }
     }
@@ -181,7 +173,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(call, &mut None).await;
         insta::assert_snapshot!(result);
     }
 
@@ -194,7 +186,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(call, &mut None).await;
         insta::assert_snapshot!(result);
     }
 
@@ -207,7 +199,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(call, &mut None).await;
         insta::assert_snapshot!(result);
     }
 
@@ -217,7 +209,7 @@ mod test {
     impl forge_domain::ExecutableTool for SlowTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+        async fn call(&self, _: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(400)).await;
             Ok(ToolOutput::Text("Slow tool completed".to_string()))
@@ -248,7 +240,7 @@ mod test {
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(call).await;
+        let result = service.call(call, &mut None).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;

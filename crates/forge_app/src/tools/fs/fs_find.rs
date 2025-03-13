@@ -170,9 +170,11 @@ mod test {
                             regex: "test".to_string(),
                             file_pattern: None,
                         },
+                  None
             )
             .await
             .unwrap();
+        let result = result.as_str().unwrap();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 2);
@@ -198,9 +200,11 @@ mod test {
                             regex: "test".to_string(),
                             file_pattern: Some("*.rs".to_string()),
                         },
+                  None
             )
             .await
             .unwrap();
+        let result = result.as_str().unwrap();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 1);
@@ -223,9 +227,11 @@ mod test {
                             regex: "test".to_string(),
                             file_pattern: None,
                         },
+                  None
             )
             .await
             .unwrap();
+        let result = result.as_str().unwrap();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 1);
@@ -256,9 +262,11 @@ mod test {
                             regex: "test".to_string(),
                             file_pattern: None,
                         },
+                  None
             )
             .await
             .unwrap();
+        let result = result.as_str().unwrap();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 3);
@@ -285,9 +293,11 @@ mod test {
                             regex: "test".to_string(),
                             file_pattern: None,
                         },
+                  None
             )
             .await
             .unwrap();
+        let result = result.as_str().unwrap();
 
         let lines: Vec<_> = result.lines().collect();
         assert_eq!(lines.len(), 2);
@@ -310,9 +320,11 @@ mod test {
                             regex: "nonexistent".to_string(),
                             file_pattern: None,
                         },
+                  None
             )
             .await
             .unwrap();
+        let result = result.as_str().unwrap();
 
         assert!(result.is_empty());
     }
@@ -328,6 +340,7 @@ mod test {
                             regex: "[invalid".to_string(),
                             file_pattern: None,
                         },
+                  None
             )
             .await;
 
@@ -347,6 +360,7 @@ mod test {
                             regex: "test".to_string(),
                             file_pattern: None,
                         },
+                  None
             )
             .await;
 

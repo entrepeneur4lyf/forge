@@ -122,9 +122,19 @@ pub trait ToolDescription {
     fn description(&self) -> String;
 }
 
+#[derive(Debug)]
 pub enum ToolOutput {
     Text(String),
     Executor(Executor),
+}
+
+impl ToolOutput {
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            ToolOutput::Text(s) => Some(s),
+            ToolOutput::Executor(_) => None
+        }
+    }
 }
 
 #[async_trait::async_trait]

@@ -58,9 +58,10 @@ mod test {
 
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: file_path.to_string_lossy().to_string() }, )
+            .call(FSFileInfoInput { path: file_path.to_string_lossy().to_string() }, None)
             .await
             .unwrap();
+        let result = result.as_str().unwrap();
 
         assert!(result.contains("FileType"));
         assert!(result.contains("permissions"));
@@ -75,10 +76,10 @@ mod test {
 
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: dir_path.to_string_lossy().to_string() }, )
+            .call(FSFileInfoInput { path: dir_path.to_string_lossy().to_string() }, None)
             .await
             .unwrap();
-
+        let result = result.as_str().unwrap();
         assert!(result.contains("FileType"));
         assert!(result.contains("permissions"));
         assert!(result.contains("modified"));
@@ -91,7 +92,7 @@ mod test {
 
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: nonexistent_path.to_string_lossy().to_string() }, )
+            .call(FSFileInfoInput { path: nonexistent_path.to_string_lossy().to_string() }, None)
             .await;
 
         assert!(result.is_err());
@@ -101,7 +102,7 @@ mod test {
     async fn test_fs_file_info_relative_path() {
         let fs_info = FSFileInfo;
         let result = fs_info
-            .call(FSFileInfoInput { path: "relative/path.txt".to_string() }, )
+            .call(FSFileInfoInput { path: "relative/path.txt".to_string() }, None)
             .await;
 
         assert!(result.is_err());

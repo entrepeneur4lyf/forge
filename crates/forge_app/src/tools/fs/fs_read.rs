@@ -61,11 +61,11 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, )
+            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, None)
             .await
             .unwrap();
 
-        assert_eq!(result, test_content);
+        assert_eq!(result.as_str().unwrap(), test_content);
     }
 
     #[tokio::test]
@@ -75,7 +75,7 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() }, )
+            .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() }, None)
             .await;
 
         assert!(result.is_err());
@@ -89,11 +89,11 @@ mod test {
 
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, )
+            .call(FSReadInput { path: file_path.to_string_lossy().to_string() }, None)
             .await
             .unwrap();
 
-        assert_eq!(result, "");
+        assert_eq!(result.as_str().unwrap(), "");
     }
 
     #[test]
@@ -105,7 +105,7 @@ mod test {
     async fn test_fs_read_relative_path() {
         let fs_read = FSRead;
         let result = fs_read
-            .call(FSReadInput { path: "relative/path.txt".to_string() }, )
+            .call(FSReadInput { path: "relative/path.txt".to_string() }, None)
             .await;
 
         assert!(result.is_err());

@@ -53,7 +53,7 @@ impl<F> NamedTool for FSWrite<F> {
 impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
     type Input = FSWriteInput;
 
-    async fn call(&self, input: Self::Input, executor: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
+    async fn call(&self, input: Self::Input, _: Option<&mut Executor>) -> anyhow::Result<ToolOutput> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -156,9 +156,11 @@ mod test {
                             content: content.to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await
             .unwrap();
+        let output = output.as_str().unwrap();
 
         assert!(output.contains("Successfully wrote"));
         assert!(output.contains(&file_path.display().to_string()));
@@ -190,10 +192,12 @@ mod test {
                             content: "fn main() { let x = ".to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await;
 
         let output = result.unwrap();
+        let output = output.as_str().unwrap();
         assert!(output.contains("Warning:"));
     }
 
@@ -211,10 +215,13 @@ mod test {
                             content: content.to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await;
 
         let output = result.unwrap();
+        let output = output.as_str().unwrap();
+
         assert!(output.contains("Successfully wrote"));
         assert!(output.contains(&file_path.display().to_string()));
         assert!(output.contains(&content.len().to_string()));
@@ -247,10 +254,12 @@ mod test {
                             content: content.to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await
             .unwrap();
 
+        let result = result.as_str().unwrap();
         assert!(result.contains("Successfully wrote"));
         // Verify both directory and file were created
         assert_path_exists(&nested_path, &infra).await;
@@ -288,10 +297,12 @@ mod test {
                             content: content.to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await
             .unwrap();
 
+        let result = result.as_str().unwrap();
         assert!(result.contains("Successfully wrote"));
 
         // Verify entire path was created
@@ -331,10 +342,12 @@ mod test {
                             content: content.to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await
             .unwrap();
 
+        let result = result.as_str().unwrap();
         assert!(result.contains("Successfully wrote"));
 
         // Convert to platform path and verify
@@ -368,6 +381,7 @@ mod test {
                             content: "test content".to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await;
 
@@ -400,6 +414,7 @@ mod test {
                             content: "New content".to_string(),
                             overwrite: false,
                         },
+                  None
             )
             .await;
 
@@ -449,6 +464,7 @@ mod test {
                             content: new_content.to_string(),
                             overwrite: true,
                         },
+                  None
             )
             .await;
 
@@ -457,6 +473,7 @@ mod test {
         let success_msg = result.unwrap();
 
         // Success message should contain expected text
+        let success_msg = success_msg.as_str().unwrap();
         assert!(success_msg.contains("Successfully wrote"));
 
         // Verify file was actually overwritten

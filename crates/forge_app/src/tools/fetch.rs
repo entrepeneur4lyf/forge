@@ -229,8 +229,8 @@ mod tests {
             raw: Some(false),
         };
 
-        let result = fetch.call(input, ).await.unwrap();
-        let normalized_result = normalize_port(result);
+        let result = fetch.call(input, None).await.unwrap();
+        let normalized_result = normalize_port(result.as_str().unwrap().to_string());
         insta::assert_snapshot!(normalized_result);
     }
 
@@ -260,8 +260,8 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = fetch.call(input, ).await.unwrap();
-        let normalized_result = normalize_port(result);
+        let result = fetch.call(input, None).await.unwrap();
+        let normalized_result = normalize_port(result.as_str().unwrap().to_string());
         insta::assert_snapshot!(normalized_result);
     }
 
@@ -292,7 +292,7 @@ mod tests {
             raw: None,
         };
 
-        let result = fetch.call(input, ).await;
+        let result = fetch.call(input, None).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
@@ -329,8 +329,8 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = fetch.call(input, ).await.unwrap();
-        let normalized_result = normalize_port(result);
+        let result = fetch.call(input, None).await.unwrap();
+        let normalized_result = normalize_port(result.as_str().unwrap().to_string());
         assert!(normalized_result.contains("A".repeat(5000).as_str()));
         assert!(normalized_result.contains("start_index of 5000"));
 
@@ -342,8 +342,8 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = fetch.call(input, ).await.unwrap();
-        let normalized_result = normalize_port(result);
+        let result = fetch.call(input, None).await.unwrap();
+        let normalized_result = normalize_port(result.as_str().unwrap().to_string());
         assert!(normalized_result.contains("B".repeat(5000).as_str()));
     }
 
@@ -359,7 +359,7 @@ mod tests {
             raw: None,
         };
 
-        let result = rt.block_on(fetch.call(input, ));
+        let result = rt.block_on(fetch.call(input, None));
 
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("parse"));
@@ -385,7 +385,7 @@ mod tests {
             raw: None,
         };
 
-        let result = fetch.call(input, ).await;
+        let result = fetch.call(input, None).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("404"));
     }

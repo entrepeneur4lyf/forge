@@ -109,14 +109,15 @@ mod test {
         let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            recursive: None,
-                        },
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: None,
+            },
+                  None,
             )
             .await
             .unwrap();
 
-        assert_snapshot!(TempDir::normalize(&result));
+        assert_snapshot!(TempDir::normalize(result.as_str().unwrap()));
     }
 
     #[tokio::test]
@@ -135,14 +136,15 @@ mod test {
         let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            recursive: None,
-                        },
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: None,
+            },
+                  None,
             )
             .await
             .unwrap();
 
-        assert_snapshot!(TempDir::normalize(&result));
+        assert_snapshot!(TempDir::normalize(result.as_str().unwrap()));
     }
 
     #[tokio::test]
@@ -153,9 +155,10 @@ mod test {
         let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
-                            path: nonexistent_dir.to_string_lossy().to_string(),
-                            recursive: None,
-                        },
+                path: nonexistent_dir.to_string_lossy().to_string(),
+                recursive: None,
+            },
+                  None,
             )
             .await;
 
@@ -179,13 +182,14 @@ mod test {
         let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            recursive: None,
-                        },
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: None,
+            },
+                  None,
             )
             .await
             .unwrap();
-
+        let result = result.as_str().unwrap();
         assert!(result.contains("regular.txt"));
         assert!(!result.contains(".hidden"));
         assert!(!result.contains(".hidden_dir"));
@@ -215,21 +219,22 @@ mod test {
         // Test recursive listing
         let result = fs_list
             .call(FSListInput {
-                            path: temp_dir.path().to_string_lossy().to_string(),
-                            recursive: Some(true),
-                        },
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: Some(true),
+            },
+                  None,
             )
             .await
             .unwrap();
 
-        assert_snapshot!(TempDir::normalize(&result));
+        assert_snapshot!(TempDir::normalize(result.as_str().unwrap()));
     }
 
     #[tokio::test]
     async fn test_fs_list_relative_path() {
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput { path: "relative/path".to_string(), recursive: None }, )
+            .call(FSListInput { path: "relative/path".to_string(), recursive: None }, None)
             .await;
 
         assert!(result.is_err());

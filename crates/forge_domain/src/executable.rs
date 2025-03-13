@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
-use std::io::{BufRead, BufReader, Stdout, Write};
-use std::process::{Child, ChildStdin, ChildStdout, Command};
+use std::io::BufRead;
+use std::io::Write;
+use std::io::{BufReader, Read};
+use std::process::{Child, ChildStdin, Command};
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Duration;
 
@@ -15,6 +17,7 @@ pub struct Executor {
     child: Child,
     stdin: Option<ChildStdin>,
     stdout_rx: Receiver<ExecutionResult>,
+    pub stderr_rx: Receiver<ExecutionResult>,
 }
 
 impl Executor {
@@ -22,22 +25,24 @@ impl Executor {
         let mut child = command
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::piped())
             .spawn()?;
 
         let stdin = child.stdin.take();
         let stdout = BufReader::new(child.stdout.take().context("Failed to open stdout")?);
+        let stderr = BufReader::new(child.stderr.take().context("Failed to open stderr")?);
         let (stdout_tx, stdout_rx) = std::sync::mpsc::channel();
+        let (stderr_tx, stderr_rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let _stdout_thread = Self::spawn_reader_thread(stdout, stdout_tx);
+            let _stderr_thread = Self::spawn_reader_thread(stderr, stderr_tx);
         });
-        Ok(Self { child, stdin, stdout_rx })
+        Ok(Self { child, stdin, stdout_rx, stderr_rx })
     }
 
     pub fn execute(&mut self, input: Option<String>, timeout: Option<u64>) -> Result<String> {
         if let Some(ref mut stdin) = self.stdin {
             if let Some(input) = input {
-                dbg!(&input);
                 writeln!(stdin, "{}", input).context("Failed to write to stdin")?;
                 stdin.flush().context("Failed to flush stdin")?;
             }
@@ -46,8 +51,11 @@ impl Executor {
         // Use a timeout for interactive commands to prevent hanging
         let timeout = timeout.map(Duration::from_secs).unwrap_or(Duration::from_secs(1));
         let stdout = Self::collect_output_with_timeout(&self.stdout_rx, timeout)?;
+        let stderr = Self::collect_output_with_timeout(&self.stderr_rx, timeout)?;
 
-        Ok(format!("<stdout>{}</stdout>", stdout))
+        let resp = format!("<stdout>{}</stdout><stderr>{}</stderr>", stdout, stderr);
+
+        Ok(resp)
     }
 
     // We don't need this function anymore.
@@ -66,7 +74,8 @@ impl Executor {
                     break;
                 }
                 Ok(ExecutionResult::Error) => break,
-                Err(_) => {
+                Err(p) => {
+                    println!("[e]: {}", p);
                     // If we've received data and then hit a timeout, assume the interactive
                     // command is waiting for more input, so we can return
                     if received_data {
@@ -89,8 +98,8 @@ impl Executor {
         Ok(())
     }
 
-    fn spawn_reader_thread(
-        mut stdout: BufReader<ChildStdout>,
+    fn spawn_reader_thread<R: Read>(
+        mut stdout: BufReader<R>,
         tx: Sender<ExecutionResult>,
     ) {
         let mut line_buffer = String::new();
@@ -103,7 +112,6 @@ impl Executor {
                     break;
                 }
                 Ok(_) => {
-                    dbg!(&line_buffer);
                     // Successfully read data, send it if channel is still open
                     if tx.send(ExecutionResult::Text(line_buffer.clone())).is_err() {
                         // Receiver was dropped, exit the thread
