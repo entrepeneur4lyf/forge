@@ -117,7 +117,7 @@ impl ExecutableTool for Shell {
 
         dbg!(&input.is_expecting_input);
         if input.is_expecting_input {
-            let mut command = Command::new(&self.env.shell);
+            let mut command = tokio::process::Command::new(&self.env.shell);
 
             command.args([parameter, &input.command]);
 
@@ -130,7 +130,7 @@ impl ExecutableTool for Shell {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped());
 
-            Ok(ToolOutput::Executor(Executor::new(command)?))
+            Ok(ToolOutput::Executor(Executor::new(command).await?))
         } else {
             let mut command = tokio::process::Command::new(&self.env.shell);
 

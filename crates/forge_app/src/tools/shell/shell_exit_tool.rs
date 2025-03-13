@@ -30,7 +30,7 @@ impl ExecutableTool for ShellExitTool {
         executor: Option<&mut Executor>,
     ) -> anyhow::Result<ToolOutput> {
         let executor = executor.ok_or_else(|| anyhow::anyhow!("Executor is required"))?;
-        executor.exit()?;
+        executor.exit().await?;
         Ok(ToolOutput::Text("Shell command terminated".to_string()))
     }
 }

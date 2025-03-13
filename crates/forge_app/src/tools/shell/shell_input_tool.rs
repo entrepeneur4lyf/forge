@@ -43,7 +43,7 @@ impl ExecutableTool for ShellInputTool {
         executor: Option<&mut Executor>,
     ) -> anyhow::Result<ToolOutput> {
         let executor = executor.ok_or_else(|| anyhow::anyhow!("Executor is required"))?;
-        let value = executor.execute(Some(input.input), input.timeout)?;
+        let value = executor.execute(Some(input.input), input.timeout).await?;
         Ok(ToolOutput::Text(value))
     }
 }
