@@ -14,7 +14,6 @@ pub struct ShellExitInput {
 /// This tool call allows the LLM to send a termination signal to a shell command
 /// that is currently executed. It is useful for stopping interactive or long-running 
 /// processes initiated via the `Shell` tool.
-/// This tool does not require any json, simply pass null in tool call input.
 #[derive(ToolDescription)]
 pub struct ShellExitTool;
 
