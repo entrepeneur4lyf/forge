@@ -349,7 +349,7 @@ impl<A: App> Orchestrator<A> {
                 .await?;
             let ChatCompletionResult { tool_calls, content } =
                 self.collect_messages(&agent.id, response).await?;
-            println!("{:#?}", tool_calls);
+            // println!("{:#?}", tool_calls);
 
             let mut tool_results = Vec::new();
 

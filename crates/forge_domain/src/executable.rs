@@ -37,6 +37,7 @@ impl Executor {
     pub fn execute(&mut self, input: Option<String>, timeout: Option<u64>) -> Result<String> {
         if let Some(ref mut stdin) = self.stdin {
             if let Some(input) = input {
+                dbg!(&input);
                 writeln!(stdin, "{}", input).context("Failed to write to stdin")?;
                 stdin.flush().context("Failed to flush stdin")?;
             }
@@ -102,6 +103,7 @@ impl Executor {
                     break;
                 }
                 Ok(_) => {
+                    dbg!(&line_buffer);
                     // Successfully read data, send it if channel is still open
                     if tx.send(ExecutionResult::Text(line_buffer.clone())).is_err() {
                         // Receiver was dropped, exit the thread
