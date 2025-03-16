@@ -148,12 +148,13 @@ jobs:
     - name: Import certificate
       if: contains(matrix.os, 'windows')
       run: Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\LocalMachine\My\  -Password (ConvertTo-SecureString -String ${{ secrets.CERTIFICATE_PASSWORD }} -Force -AsPlainText)
-    - name: Install windows-sdk
-      if: contains(matrix.os, 'windows')
-      run: choco install windows-sdk -y
     - name: Sign binary
       if: contains(matrix.os, 'windows')
-      run: signtool sign /sm /t http://timestamp.sectigo.com /fd SHA256 ${{ matrix.binary_name }}
+      uses: lando/code-sign-action@v3
+      with:
+        file: ${{ matrix.binary_name }}
+        certificate-data: ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }}
+        certificate-password: ${{ secrets.CERTIFICATE_PASSWORD }}
     - name: Clean up certificate
       if: contains(matrix.os, 'windows')
       run: Remove-Item -Path certificate.pfx

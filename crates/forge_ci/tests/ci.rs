@@ -180,17 +180,14 @@ fn generate() {
                     .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                     .name("Import certificate"),
             )
+            // Sign Windows executable
             .add_step(
-                Step::run(
-                    "choco install windows-sdk -y"
+                Step::uses(
+                    "lando", "code-sign-action", "v3",
                 )
-                    .if_condition(Expression::new("contains(matrix.os, 'windows')"))
-                    .name("Install windows-sdk"),
-            )// Sign Windows executable
-            .add_step(
-                Step::run(
-                    "signtool sign /sm /t http://timestamp.sectigo.com /fd SHA256 ${{ matrix.binary_name }}"
-                )
+                    .add_with(("file", "${{ matrix.binary_name }}"))
+                    .add_with(("certificate-data", "${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }}"))
+                    .add_with(("certificate-password", "${{ secrets.CERTIFICATE_PASSWORD }}"))
                     .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                     .name("Sign binary")
             )
