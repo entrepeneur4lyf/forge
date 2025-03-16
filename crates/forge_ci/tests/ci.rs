@@ -176,7 +176,9 @@ fn generate() {
                 .add_env((
                     "APP_VERSION",
                     "${{ needs.draft_release.outputs.create_release_name }}",
-                )),
+                ))
+                .add_env(("CERTIFICATE_PASSWORD", "${{ secrets.CERTIFICATE_PASSWORD }}")),
+
         );
     let label_cond = Expression::new("github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-all-targets')");
     workflow = workflow.add_job(
@@ -193,6 +195,35 @@ fn generate() {
             .add_step(Step::run(
                 "cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}",
             ))
+            // Setup code signing for Windows builds
+            .add_step(
+                Step::run(
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 --decode > certificate.pfx"
+                )
+                .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                .name("Decode signing certificate"),
+            )
+            .add_step(
+                Step::run(
+                    "Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\\LocalMachine\\My\\  -Password (ConvertTo-SecureString -String ${{ secrets.CERTIFICATE_PASSWORD }} -Force -AsPlainText)"
+                )
+                .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                .name("Import certificate"),
+            )
+            // Sign Windows executable
+            .add_step(
+                Step::run(
+                    "signtool sign /sm /t http://timestamp.sectigo.com /fd SHA256 ${{ matrix.binary_name }}"
+                )
+                .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                .name("Sign binary")
+            )
+            // Clean up certificate
+            .add_step(
+                Step::run("Remove-Item -Path certificate.pfx")
+                .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                .name("Clean up certificate")
+            )
             // Upload directly to release
             .add_step(
                 Step::uses("xresloader", "upload-to-github-release", "v1")
