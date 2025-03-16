@@ -192,7 +192,7 @@ fn generate() {
             // Setup code signing for Windows builds
             .add_step(
                 Step::run(
-                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 --decode > certificate.pfx"
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -Dd > certificate.pfx"
                 )
                     .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                     .name("Decode signing certificate"),
@@ -232,7 +232,7 @@ fn generate() {
             // Setup code signing for Windows builds
             .add_step(
                 Step::run(
-                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -D -i forge.pfx.b64  > certificate.pfx"
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -Dd > certificate.pfx"
                 )
                 .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                 .name("Decode signing certificate"),
