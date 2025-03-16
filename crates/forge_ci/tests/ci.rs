@@ -36,23 +36,23 @@ fn generate() {
 
     // Set up the build matrix for all platforms
     let matrix = json!({
-        "include": [
-            {
-                "os": "windows-latest",
-                "target": "x86_64-pc-windows-msvc",
-                "binary_name": "forge-x86_64-pc-windows-msvc.exe",
-                "binary_path": "target/x86_64-pc-windows-msvc/debug/forge.exe",
-                "cross": "false"
-            },
-/*            {
-                "os": "windows-latest",
-                "target": "aarch64-pc-windows-msvc",
-                "binary_name": "forge-aarch64-pc-windows-msvc.exe",
-                "binary_path": "target/aarch64-pc-windows-msvc/debug/forge.exe",
-                "cross": "false"
-            }*/
-        ]
-    });
+            "include": [
+                {
+                    "os": "windows-latest",
+                    "target": "x86_64-pc-windows-msvc",
+                    "binary_name": "forge-x86_64-pc-windows-msvc.exe",
+                    "binary_path": "target/x86_64-pc-windows-msvc/debug/forge.exe",
+                    "cross": "false"
+                },
+    /*            {
+                    "os": "windows-latest",
+                    "target": "aarch64-pc-windows-msvc",
+                    "binary_name": "forge-aarch64-pc-windows-msvc.exe",
+                    "binary_path": "target/aarch64-pc-windows-msvc/debug/forge.exe",
+                    "cross": "false"
+                }*/
+            ]
+        });
 
     let build_job = workflow.jobs.clone().unwrap().get("build").unwrap().clone();
     let main_cond =
