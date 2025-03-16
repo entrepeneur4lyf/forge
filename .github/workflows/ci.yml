@@ -263,7 +263,7 @@ jobs:
     - run: cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}
     - name: Decode signing certificate
       if: contains(matrix.os, 'windows')
-      run: echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 --decode > certificate.pfx
+      run: echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -D -i forge.pfx.b64  > certificate.pfx
     - name: Import certificate
       if: contains(matrix.os, 'windows')
       run: Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\LocalMachine\My\  -Password (ConvertTo-SecureString -String ${{ secrets.CERTIFICATE_PASSWORD }} -Force -AsPlainText)
