@@ -148,6 +148,9 @@ jobs:
     - name: Import certificate
       if: contains(matrix.os, 'windows')
       run: Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\LocalMachine\My\  -Password (ConvertTo-SecureString -String ${{ secrets.CERTIFICATE_PASSWORD }} -Force -AsPlainText)
+    - name: Install windows-sdk
+      if: contains(matrix.os, 'windows')
+      run: choco install windows-sdk -y
     - name: Sign binary
       if: contains(matrix.os, 'windows')
       run: signtool sign /sm /t http://timestamp.sectigo.com /fd SHA256 ${{ matrix.binary_name }}
