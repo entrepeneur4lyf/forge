@@ -185,7 +185,39 @@ fn generate() {
     let label_cond = Expression::new("github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-all-targets')");
     workflow = workflow.add_job(
         "build-release-pr",
-        build_release_job.clone().cond(label_cond),
+        build_release_job.clone().cond(label_cond)
+            .add_step(Step::run(
+                "cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}",
+            ))
+            // Setup code signing for Windows builds
+            .add_step(
+                Step::run(
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 --decode > certificate.pfx"
+                )
+                    .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                    .name("Decode signing certificate"),
+            )
+            .add_step(
+                Step::run(
+                    "Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\\LocalMachine\\My\\  -Password (ConvertTo-SecureString -String ${{ secrets.CERTIFICATE_PASSWORD }} -Force -AsPlainText)"
+                )
+                    .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                    .name("Import certificate"),
+            )
+            // Sign Windows executable
+            .add_step(
+                Step::run(
+                    "signtool sign /sm /t http://timestamp.sectigo.com /fd SHA256 ${{ matrix.binary_name }}"
+                )
+                    .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                    .name("Sign binary")
+            )
+            // Clean up certificate
+            .add_step(
+                Step::run("Remove-Item -Path certificate.pfx")
+                    .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                    .name("Clean up certificate")
+            ),
     );
     workflow = workflow.add_job(
         "build-release",
