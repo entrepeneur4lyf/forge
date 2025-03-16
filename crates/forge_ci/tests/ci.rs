@@ -122,6 +122,18 @@ fn generate() {
                 "contains(matrix.target, '-unknown-linux-musl')",
             )),
         )
+        .add_step(
+            Step::run("echo 'hi' | base64")
+                .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                .name("base64 encode hi"),
+        )
+        .add_step(
+            Step::run(
+                "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -d > certificate.pfx",
+            )
+            .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+            .name("Decode signing certificate"),
+        )
         // Build release binary
         .add_step(
             Step::uses("ClementTsang", "cargo-action", "v0.0.6")
@@ -156,7 +168,7 @@ fn generate() {
                     .name("base64 help"),
             )      .add_step(
                 Step::run(
-                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -Dd > certificate.pfx"
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -d > certificate.pfx"
                 )
                     .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                     .name("Decode signing certificate"),
@@ -196,7 +208,7 @@ fn generate() {
             // Setup code signing for Windows builds
             .add_step(
                 Step::run(
-                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -Dd > certificate.pfx"
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -d > certificate.pfx"
                 )
                 .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                 .name("Decode signing certificate"),
