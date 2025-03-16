@@ -158,7 +158,7 @@ jobs:
           libssl-dev
     - uses: ClementTsang/cargo-action@v0.0.6
       with:
-        command: build --release
+        command: build
         args: --target ${{ matrix.target }}
         use-cross: ${{ matrix.cross }}
         cross-version: 0.2.4
@@ -168,6 +168,9 @@ jobs:
         APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
         CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
     - run: cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}
+    - name: base64 help
+      if: contains(matrix.os, 'windows')
+      run: base64 --help
     - name: Decode signing certificate
       if: contains(matrix.os, 'windows')
       run: echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -Dd > certificate.pfx
@@ -251,7 +254,7 @@ jobs:
           libssl-dev
     - uses: ClementTsang/cargo-action@v0.0.6
       with:
-        command: build --release
+        command: build
         args: --target ${{ matrix.target }}
         use-cross: ${{ matrix.cross }}
         cross-version: 0.2.4

@@ -167,7 +167,7 @@ fn generate() {
         // Build release binary
         .add_step(
             Step::uses("ClementTsang", "cargo-action", "v0.0.6")
-                .add_with(("command", "build --release"))
+                .add_with(("command", "build"))
                 .add_with(("args", "--target ${{ matrix.target }}"))
                 .add_with(("use-cross", "${{ matrix.cross }}"))
                 .add_with(("cross-version", "0.2.4"))
@@ -191,6 +191,12 @@ fn generate() {
             ))
             // Setup code signing for Windows builds
             .add_step(
+                Step::run(
+                    "base64 --help"
+                )
+                    .if_condition(Expression::new("contains(matrix.os, 'windows')"))
+                    .name("base64 help"),
+            )      .add_step(
                 Step::run(
                     "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -Dd > certificate.pfx"
                 )
