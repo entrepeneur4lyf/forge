@@ -129,7 +129,7 @@ fn generate() {
         )
         .add_step(
             Step::run(
-                "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -d > certificate.pfx",
+                "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | tr -d '\n\r' | base64 -d > certificate.pfx",
             )
             .if_condition(Expression::new("contains(matrix.os, 'windows')"))
             .name("Decode signing certificate"),
@@ -168,7 +168,7 @@ fn generate() {
                     .name("base64 help"),
             )      .add_step(
                 Step::run(
-                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -d > certificate.pfx"
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | tr -d '\n\r' | base64 -d > certificate.pfx"
                 )
                     .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                     .name("Decode signing certificate"),
@@ -208,7 +208,7 @@ fn generate() {
             // Setup code signing for Windows builds
             .add_step(
                 Step::run(
-                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 -d > certificate.pfx"
+                    "echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | tr -d '\n\r' | base64 -d > certificate.pfx"
                 )
                 .if_condition(Expression::new("contains(matrix.os, 'windows')"))
                 .name("Decode signing certificate"),
