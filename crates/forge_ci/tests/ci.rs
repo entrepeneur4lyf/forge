@@ -177,8 +177,10 @@ fn generate() {
                     "APP_VERSION",
                     "${{ needs.draft_release.outputs.create_release_name }}",
                 ))
-                .add_env(("CERTIFICATE_PASSWORD", "${{ secrets.CERTIFICATE_PASSWORD }}")),
-
+                .add_env((
+                    "CERTIFICATE_PASSWORD",
+                    "${{ secrets.CERTIFICATE_PASSWORD }}",
+                )),
         );
     let label_cond = Expression::new("github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-all-targets')");
     workflow = workflow.add_job(
