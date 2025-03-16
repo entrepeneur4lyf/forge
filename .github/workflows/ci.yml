@@ -166,6 +166,7 @@ jobs:
         RUSTFLAGS: ${{ env.RUSTFLAGS }}
         POSTHOG_API_SECRET: ${{secrets.POSTHOG_API_SECRET}}
         APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
+        CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
   build-release:
     needs:
     - build
@@ -245,7 +246,20 @@ jobs:
         RUSTFLAGS: ${{ env.RUSTFLAGS }}
         POSTHOG_API_SECRET: ${{secrets.POSTHOG_API_SECRET}}
         APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
+        CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
     - run: cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}
+    - name: Decode signing certificate
+      if: contains(matrix.os, 'windows')
+      run: echo ${{ secrets.CODE_SIGNING_CERTIFICATE_BASE64 }} | base64 --decode > certificate.pfx
+    - name: Import certificate
+      if: contains(matrix.os, 'windows')
+      run: Import-PfxCertificate -FilePath certificate.pfx -CertStoreLocation Cert:\LocalMachine\My\  -Password (ConvertTo-SecureString -String ${{ secrets.CERTIFICATE_PASSWORD }} -Force -AsPlainText)
+    - name: Sign binary
+      if: contains(matrix.os, 'windows')
+      run: signtool sign /sm /t http://timestamp.sectigo.com /fd SHA256 ${{ matrix.binary_name }}
+    - name: Clean up certificate
+      if: contains(matrix.os, 'windows')
+      run: Remove-Item -Path certificate.pfx
     - uses: xresloader/upload-to-github-release@v1
       with:
         release_id: ${{ needs.draft_release.outputs.create_release_id }}
