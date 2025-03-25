@@ -49,4 +49,12 @@ pub struct Cli {
     /// For example: --event '{"name": "fix_issue", "value": "449"}'
     #[arg(long, short = 'e')]
     pub event: Option<String>,
+
+    /// Enable Multi-Context Programming (MCP) mode.
+    /// 
+    /// When enabled, Forge will use Antinomy's MCP capabilities to maintain
+    /// multiple separate contexts simultaneously, allowing for more sophisticated
+    /// reasoning and problem-solving approaches.
+    #[arg(long, short = 'm', default_value_t = false)]
+    pub mcp: bool,
 }

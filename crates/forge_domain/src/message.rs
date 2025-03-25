@@ -67,6 +67,12 @@ pub struct ContentPart(String);
 #[serde(transparent)]
 pub struct ContentFull(String);
 
+impl<T: ToString> From<T> for ContentFull {
+    fn from(value: T) -> Self {
+        ContentFull(value.to_string())
+    }
+}
+
 /// The reason why the model stopped generating output.
 /// Read more: https://platform.openai.com/docs/guides/function-calling#edge-cases
 #[derive(Clone, Debug, Deserialize, Serialize, EnumString, PartialEq, Eq)]

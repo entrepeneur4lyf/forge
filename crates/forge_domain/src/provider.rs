@@ -6,6 +6,7 @@ use url::Url;
 pub enum Provider {
     OpenAI { url: Url, key: Option<String> },
     Anthropic { url: Url, key: String },
+    MCP { url: Url, key: String },
 }
 
 impl Provider {
@@ -15,7 +16,8 @@ impl Provider {
             Provider::OpenAI { url: set_url, .. } => {
                 *set_url = Url::parse(&url).unwrap();
             }
-            Provider::Anthropic { .. } => {}
+            Provider::Anthropic { .. } => {},
+            Provider::MCP { .. } => {},
         }
     }
 
@@ -25,7 +27,19 @@ impl Provider {
             Provider::Anthropic { url: set_url, .. } => {
                 *set_url = Url::parse(&url).unwrap();
             }
-            Provider::OpenAI { .. } => {}
+            Provider::OpenAI { .. } => {},
+            Provider::MCP { .. } => {},
+        }
+    }
+    
+    /// Sets the MCP URL if the provider is MCP
+    pub fn mcp_url(&mut self, url: String) {
+        match self {
+            Provider::MCP { url: set_url, .. } => {
+                *set_url = Url::parse(&url).unwrap();
+            }
+            Provider::OpenAI { .. } => {},
+            Provider::Anthropic { .. } => {},
         }
     }
 
@@ -56,11 +70,19 @@ impl Provider {
             key: key.into(),
         }
     }
+    
+    pub fn mcp(key: &str) -> Provider {
+        Provider::MCP {
+            url: Url::parse(Provider::MCP_URL).unwrap(),
+            key: key.into(),
+        }
+    }
 
     pub fn key(&self) -> Option<&str> {
         match self {
             Provider::OpenAI { key, .. } => key.as_deref(),
             Provider::Anthropic { key, .. } => Some(key),
+            Provider::MCP { key, .. } => Some(key),
         }
     }
 }
@@ -70,12 +92,14 @@ impl Provider {
     pub const OPENAI_URL: &str = "https://api.openai.com/v1/";
     pub const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/";
     pub const ANTINOMY_URL: &str = "https://antinomy.ai/api/v1/";
+    pub const MCP_URL: &str = "https://antinomy.ai/api/mcp/v1/";
 
     /// Converts the provider to it's base URL
     pub fn to_base_url(&self) -> Url {
         match self {
             Provider::OpenAI { url, .. } => url.clone(),
             Provider::Anthropic { url, .. } => url.clone(),
+            Provider::MCP { url, .. } => url.clone(),
         }
     }
 
@@ -83,6 +107,7 @@ impl Provider {
         match self {
             Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::ANTINOMY_URL),
             Provider::Anthropic { .. } => false,
+            Provider::MCP { .. } => false,
         }
     }
 
@@ -90,6 +115,7 @@ impl Provider {
         match self {
             Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::OPEN_ROUTER_URL),
             Provider::Anthropic { .. } => false,
+            Provider::MCP { .. } => false,
         }
     }
 
@@ -97,6 +123,7 @@ impl Provider {
         match self {
             Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::OPENAI_URL),
             Provider::Anthropic { .. } => false,
+            Provider::MCP { .. } => false,
         }
     }
 
@@ -104,6 +131,15 @@ impl Provider {
         match self {
             Provider::OpenAI { .. } => false,
             Provider::Anthropic { url, .. } => url.as_str().starts_with(Self::ANTHROPIC_URL),
+            Provider::MCP { .. } => false,
+        }
+    }
+    
+    pub fn is_mcp(&self) -> bool {
+        match self {
+            Provider::OpenAI { .. } => false,
+            Provider::Anthropic { .. } => false,
+            Provider::MCP { url, .. } => url.as_str().starts_with(Self::MCP_URL),
         }
     }
 }

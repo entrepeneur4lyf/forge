@@ -36,6 +36,7 @@ impl Client {
                         format!("Failed to initialize Anthropic client with URL: {}", url)
                     })?,
             )),
+            Provider::MCP { .. } => todo!(),
         }
     }
 }
