@@ -27,6 +27,7 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod workflow;
+mod mcp;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -39,6 +40,7 @@ pub use event::*;
 pub use file::*;
 pub use message::*;
 pub use model::*;
+pub use mcp::*;
 pub use orch::*;
 pub use point::*;
 pub use provider::*;
