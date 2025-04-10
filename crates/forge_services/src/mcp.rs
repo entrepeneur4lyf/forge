@@ -1,5 +1,8 @@
 #![allow(unused)]
 
+#[cfg(test)]
+mod tests;
+
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::process::Stdio;
