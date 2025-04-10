@@ -7,8 +7,9 @@ mod tests_mcp {
 
     use bytes::Bytes;
     use forge_domain::{
-        Environment, EnvironmentService, LoaderService, McpConfig, McpFsServerConfig, McpHttpServerConfig,
-        McpService, Provider, RetryConfig, RunnableService, ToolDefinition, ToolName, Workflow, VERSION,
+        Environment, EnvironmentService, LoaderService, McpConfig, McpFsServerConfig,
+        McpHttpServerConfig, McpService, Provider, RetryConfig, RunnableService, ToolDefinition,
+        ToolName, Workflow, VERSION,
     };
     use pretty_assertions::assert_eq;
     use rmcp::model::{CallToolResult, Content, Implementation, RawContent, RawTextContent};
@@ -35,9 +36,7 @@ mod tests_mcp {
         let mut http_servers = HashMap::new();
         http_servers.insert(
             "test_http".to_string(),
-            McpHttpServerConfig {
-                url: "https://example.com/test".to_string(),
-            },
+            McpHttpServerConfig { url: "https://example.com/test".to_string() },
         );
         mcp_config.http = Some(http_servers);
 
@@ -179,7 +178,10 @@ mod tests_mcp {
 
     #[async_trait::async_trait]
     impl FsSnapshotService for TestFsSnapshotService {
-        async fn create_snapshot(&self, _file_path: &Path) -> anyhow::Result<forge_snaps::Snapshot> {
+        async fn create_snapshot(
+            &self,
+            _file_path: &Path,
+        ) -> anyhow::Result<forge_snaps::Snapshot> {
             // Create a minimal Snapshot with the right fields
             Ok(forge_snaps::Snapshot {
                 id: forge_snaps::SnapshotId::new(),
@@ -246,7 +248,9 @@ mod tests_mcp {
             Ok(vec![ToolDefinition {
                 name: ToolName::new("test_tool"),
                 description: "Test tool description".to_string(),
-                input_schema: serde_json::from_value(serde_json::Value::Object(serde_json::Map::new()))?,
+                input_schema: serde_json::from_value(serde_json::Value::Object(
+                    serde_json::Map::new(),
+                ))?,
                 output_schema: None,
             }])
         }
@@ -259,12 +263,14 @@ mod tests_mcp {
             Err(anyhow::anyhow!("Not implemented for tests"))
         }
 
-        async fn call_tool(&self, _tool_name: &str, _arguments: serde_json::Value) -> anyhow::Result<CallToolResult> {
+        async fn call_tool(
+            &self,
+            _tool_name: &str,
+            _arguments: serde_json::Value,
+        ) -> anyhow::Result<CallToolResult> {
             Ok(CallToolResult {
                 content: vec![Content {
-                    raw: RawContent::Text(RawTextContent {
-                        text: "Test result".to_string(),
-                    }),
+                    raw: RawContent::Text(RawTextContent { text: "Test result".to_string() }),
                     annotations: None,
                 }],
                 is_error: None,
@@ -294,13 +300,10 @@ mod tests_mcp {
     fn test_client_info() {
         // Verify client info has correct values
         let client_info = ForgeMcp::<TestInfra>::client_info();
-        
+
         assert_eq!(
             client_info.client_info,
-            Implementation {
-                name: "Forge".to_string(),
-                version: VERSION.to_string(),
-            }
+            Implementation { name: "Forge".to_string(), version: VERSION.to_string() }
         );
     }
 
@@ -309,10 +312,10 @@ mod tests_mcp {
         // Prefix is limited to 10 characters
         let tool_name = "test_tool";
         let server_name = "test_serv"; // 9 chars to be safe
-        
+
         // The actual format is prefix-forgestrip-name
         let expected_prefixed_name = format!("{}-forgestrip-{}", server_name, tool_name);
-        
+
         // Verify the tool name is correctly prefixed
         let prefixed_name = ToolName::prefixed(server_name, tool_name);
         assert_eq!(prefixed_name.to_string(), expected_prefixed_name);
@@ -324,13 +327,13 @@ mod tests_mcp {
         let infra = TestInfra::new();
         let loader = ForgeLoaderService::new(Arc::new(infra), None);
         let mcp_service = ForgeMcp::new(loader);
-        
+
         // Test getting a non-existent service
         let result = mcp_service.get_service("non_existent_tool").await;
         assert!(result.is_err());
         let err = result.err().unwrap();
         assert_eq!(err.to_string(), "Server not found");
-        
+
         // Test calling a non-existent tool
         let result = mcp_service.call_tool("non_existent_tool", json!({})).await;
         assert!(result.is_err());
@@ -344,13 +347,13 @@ mod tests_mcp {
         let workflow = create_test_workflow(true);
         let mock_loader = MockLoaderService::with_workflow(workflow);
         let mock_mcp = MockForgeMcp { loader: mock_loader };
-        
+
         // Verify the mock can list tools
         let tools = mock_mcp.list_tools().await.unwrap();
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name.to_string(), "test_tool");
         assert_eq!(tools[0].description, "Test tool description");
-        
+
         // Verify we can call tools
         let result = mock_mcp.call_tool("test_tool", json!({})).await.unwrap();
         assert_eq!(result.content[0].raw.as_text().unwrap().text, "Test result");
@@ -363,7 +366,7 @@ mod tests_mcp {
         let workflow = create_test_workflow(true);
         let mock_loader = MockLoaderService::with_workflow(workflow);
         let mock_mcp = MockForgeMcp { loader: mock_loader };
-        
+
         // Test stopping servers
         let result = mock_mcp.stop_all_servers().await;
         assert!(result.is_ok());
