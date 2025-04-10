@@ -39,15 +39,12 @@ impl ToolName {
             ToolName(formatted)
         }
     }
-    pub fn striped_prefix(&self) -> String {
-        let split = self.0.split("-forgestrip-").collect::<Vec<&str>>();
-        split.get(1).unwrap_or(&self.0.as_str()).to_string()
-    }
 }
 
 impl ToolName {
     pub fn into_string(self) -> String {
-        self.0
+        let split = self.0.split("-forgestrip-").collect::<Vec<&str>>();
+        split.get(1).unwrap_or(&self.0.as_str()).to_string()
     }
 
     pub fn as_str(&self) -> &str {

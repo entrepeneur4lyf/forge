@@ -189,12 +189,23 @@ impl<F: Infrastructure> McpService for ForgeMcp<F> {
 
     async fn stop_all_servers(&self) -> anyhow::Result<()> {
         let mut servers = self.servers.lock().await;
-        for (name, server) in servers.drain() {
-            Arc::into_inner(server.client)
-                .context(anyhow::anyhow!("Failed to stop server {name}"))?
-                .cancel()
-                .await
-                .map_err(|e| anyhow::anyhow!("Failed to stop server {name}: {e}"))?;
+        for (name, server_holder) in servers.drain() {
+            // Get the Arc from the server holder
+            let client = server_holder.client;
+
+            // Log reference count info if high
+            let ref_count = Arc::strong_count(&client);
+            if ref_count > 1 {
+                continue;
+            }
+
+            // Try to get exclusive ownership and call cancel
+            if let Ok(service) = Arc::try_unwrap(client) {
+                service
+                    .cancel()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Failed to stop server {name}: {e}"))?;
+            }
         }
         servers.clear();
         Ok(())
@@ -216,7 +227,7 @@ impl<F: Infrastructure> McpService for ForgeMcp<F> {
             Ok(server
                 .client
                 .call_tool(CallToolRequestParam {
-                    name: Cow::Owned(tool_name.striped_prefix()),
+                    name: Cow::Owned(tool_name.into_string()),
                     arguments: arguments.as_object().cloned(),
                 })
                 .await?)
