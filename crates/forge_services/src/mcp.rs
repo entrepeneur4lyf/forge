@@ -2,14 +2,17 @@
 
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::process::Stdio;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{LoaderService, McpHttpServerConfig, McpService, RunnableService, Services, ToolDefinition, ToolName, VERSION};
-use rmcp::model::{CallToolRequestParam, CallToolResult, ClientInfo, Implementation};
+use forge_domain::{LoaderService, McpFsServerConfig, McpHttpServerConfig, McpService, RunnableService, Services, ToolDefinition, ToolName, VERSION};
+use rmcp::model::{CallToolRequestParam, CallToolResult, ClientInfo, Implementation, ListToolsResult};
 use rmcp::ServiceExt;
+use rmcp::transport::TokioChildProcess;
 use serde_json::Value;
 use tokio::sync::Mutex;
+use tokio::process::Command;
 use crate::Infrastructure;
 use crate::loader::ForgeLoaderService;
 
@@ -38,6 +41,57 @@ impl<F: Infrastructure> ForgeMcp<F> {
             client_info: Implementation { name: "Forge".to_string(), version: VERSION.to_string() },
         }
     }
+
+    async fn insert_tools(&self, server_name: &str, tools: ListToolsResult, client: Arc<RunnableService>) -> anyhow::Result<()> {
+        let mut lock = self.servers.lock().await;
+        for tool in tools.tools.into_iter() {
+            let tool_name = ToolName::prefixed(server_name, tool.name);
+            lock.insert(
+                tool_name.clone(),
+                ServerHolder {
+                    client: client.clone(),
+                    tool_definition: ToolDefinition {
+                        name: tool_name,
+                        description: tool.description.unwrap_or_default().to_string(),
+                        input_schema: serde_json::from_str(&serde_json::to_string(
+                            &tool.input_schema,
+                        )?)?,
+                        output_schema: None,
+                    },
+                    server_name: server_name.to_string(),
+                },
+            );
+        }
+
+        Ok(())
+    }
+
+    async fn start_fs_server(
+        &self,
+        server_name: &str,
+        config: McpFsServerConfig,
+    ) -> anyhow::Result<()> {
+        let mut command = Command::new(config.command);
+
+        if let Some(env) = config.env {
+            for (key, value) in env {
+                command.env(key, value);
+            }
+        }
+        
+        let client = ().serve(TokioChildProcess::new(command.args(config.args))?).await?;
+        let tools = client
+            .list_tools(None)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to list tools: {e}"))?;
+        let client = Arc::new(RunnableService::Fs(client));
+
+        self.insert_tools(server_name, tools, client.clone())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to insert tools: {e}"))?;
+
+        Ok(())
+    }
     async fn start_http_server(
         &self,
         server_name: &str,
@@ -58,26 +112,9 @@ impl<F: Infrastructure> ForgeMcp<F> {
             .map_err(|e| anyhow::anyhow!("Failed to list tools: {e}"))?;
         let client = Arc::new(RunnableService::Http(client));
 
-        let mut lock = self.servers.lock().await;
-        for tool in tools.tools.into_iter() {
-            let tool_name = ToolName::prefixed(hex::encode(server_name.as_bytes()), tool.name);
-            lock.insert(
-                tool_name.clone(),
-                ServerHolder {
-                    client: client.clone(),
-                    tool_definition: ToolDefinition {
-                        name: tool_name,
-                        description: tool.description.unwrap_or_default().to_string(),
-                        input_schema: serde_json::from_str(&serde_json::to_string(
-                            &tool.input_schema,
-                        )?)?,
-                        output_schema: None,
-                    },
-                    server_name: server_name.to_string(),
-                },
-            );
-        }
-        drop(lock);
+        self.insert_tools(server_name, tools, client.clone())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to insert tools: {e}"))?;
 
         Ok(())
     }
@@ -90,21 +127,32 @@ impl<F: Infrastructure> McpService for ForgeMcp<F> {
         match self.loader.load().await?.mcp {
             None => Ok(()),
             Some(config) => {
-                if let Some(servers) = config.http {
-                    let results: Vec<anyhow::Result<()>> = futures::future::join_all(
-                        servers
+                if let Some(http_servers) = config.http {
+                    let http_results: Vec<anyhow::Result<()>> = futures::future::join_all(
+                        http_servers
                             .iter()
-                            .map(|(server_name, server)| {
-                                let server_config = server.clone();
-                                async move {
-                                    self.start_http_server(server_name, server_config).await?;
-                                    Ok(())
-                                }
-                            })
+                            .map(|(server_name, server)| self.start_http_server(server_name, server.clone()))
                             .collect::<Vec<_>>(),
                     )
                         .await;
-                    for i in results {
+
+                    for i in http_results {
+                        if let Err(e) = i {
+                            tracing::error!("Failed to start server: {e}");
+                        }
+                    }
+                }
+
+                if let Some(fs_servers) = config.fs {
+                    let fs_results: Vec<anyhow::Result<()>> = futures::future::join_all(
+                        fs_servers
+                            .iter()
+                            .map(|(server_name, server)| self.start_fs_server(server_name, server.clone()))
+                            .collect::<Vec<_>>(),
+                    )
+                        .await;
+
+                    for i in fs_results {
                         if let Err(e) = i {
                             tracing::error!("Failed to start server: {e}");
                         }
