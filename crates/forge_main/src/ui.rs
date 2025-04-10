@@ -285,7 +285,7 @@ impl<F: API> UI<F> {
                     self.api.upsert_conversation(conversation).await?;
                     Ok(conversation_id.clone())
                 } else {
-                    let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
+                    let workflow = self.api.load().await?;
                     self.command.register_all(&workflow);
                     let conversation_id = self.api.init(workflow).await?;
                     self.state.conversation_id = Some(conversation_id.clone());

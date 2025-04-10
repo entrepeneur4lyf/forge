@@ -1,17 +1,18 @@
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use serde_json::Value;
+
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_services::{ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
-use serde_json::Value;
 
+use crate::API;
 use crate::executor::ForgeExecutorService;
 use crate::loader::ForgeLoaderService;
 use crate::suggestion::ForgeSuggestionService;
-use crate::API;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
@@ -21,21 +22,21 @@ pub struct ForgeAPI<F> {
 }
 
 impl<F: Services + Infrastructure> ForgeAPI<F> {
-    pub fn new(app: Arc<F>) -> Self {
+    pub fn new(app: Arc<F>, workflow_path: Option<PathBuf>) -> Self {
         Self {
             app: app.clone(),
             executor_service: ForgeExecutorService::new(app.clone()),
             suggestion_service: ForgeSuggestionService::new(app.clone()),
-            loader: ForgeLoaderService::new(app.clone()),
+            loader: ForgeLoaderService::new(app.clone(), workflow_path),
         }
     }
 }
 
 impl ForgeAPI<ForgeServices<ForgeInfra>> {
-    pub fn init(restricted: bool) -> Self {
+    pub fn init(restricted: bool, workflow_path: Option<PathBuf>) -> Self {
         let infra = Arc::new(ForgeInfra::new(restricted));
         let app = Arc::new(ForgeServices::new(infra));
-        ForgeAPI::new(app)
+        ForgeAPI::new(app, workflow_path)
     }
 }
 
@@ -74,8 +75,8 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .clone()
     }
 
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.loader.load(path).await
+    async fn load(&self) -> anyhow::Result<Workflow> {
+        self.loader.load().await
     }
 
     async fn conversation(
