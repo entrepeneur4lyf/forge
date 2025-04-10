@@ -2,11 +2,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::Workflow;
-use forge_services::{FsReadService, Infrastructure};
+use forge_domain::{LoaderService, Workflow};
 use merge::Merge;
-
-// Import the default configuration
+use crate::{FsReadService, Infrastructure};
 use crate::forge_default::create_default_workflow;
 
 /// Represents the possible sources of a workflow configuration
@@ -37,17 +35,9 @@ impl<F> ForgeLoaderService<F> {
     }
 }
 
-impl<F: Infrastructure> ForgeLoaderService<F> {
-    /// Loads the workflow from the given path.
-    /// If a path is provided, uses that workflow directly without merging.
-    /// If no path is provided:
-    ///   - Loads from current directory's forge.yaml merged with defaults (if
-    ///     forge.yaml exists)
-    ///   - Falls back to embedded default if forge.yaml doesn't exist
-    ///
-    /// When merging, the project's forge.yaml values take precedence over
-    /// defaults.
-    pub async fn load(&self) -> anyhow::Result<Workflow> {
+#[async_trait::async_trait]
+impl<F: Infrastructure> LoaderService for ForgeLoaderService<F> {
+    async fn load(&self) -> anyhow::Result<Workflow> {
         // Determine the workflow source
         let source = match &self.path {
             Some(path) => WorkflowSource::ExplicitPath(path),
@@ -66,7 +56,9 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
             WorkflowSource::ProjectConfig => self.load_with_project_config().await,
         }
     }
+}
 
+impl<F: Infrastructure> ForgeLoaderService<F> {
     /// Loads a workflow from a specific file path
     async fn load_from_explicit_path(&self, path: &Path) -> anyhow::Result<Workflow> {
         let content = String::from_utf8(self.app.file_read_service().read(path).await?.to_vec())?;

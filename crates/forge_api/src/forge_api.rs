@@ -11,23 +11,20 @@ use forge_stream::MpscStream;
 
 use crate::API;
 use crate::executor::ForgeExecutorService;
-use crate::loader::ForgeLoaderService;
 use crate::suggestion::ForgeSuggestionService;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
     executor_service: ForgeExecutorService<F>,
     suggestion_service: ForgeSuggestionService<F>,
-    loader: ForgeLoaderService<F>,
 }
 
 impl<F: Services + Infrastructure> ForgeAPI<F> {
-    pub fn new(app: Arc<F>, workflow_path: Option<PathBuf>) -> Self {
+    pub fn new(app: Arc<F>) -> Self {
         Self {
             app: app.clone(),
             executor_service: ForgeExecutorService::new(app.clone()),
             suggestion_service: ForgeSuggestionService::new(app.clone()),
-            loader: ForgeLoaderService::new(app.clone(), workflow_path),
         }
     }
 }
@@ -35,8 +32,8 @@ impl<F: Services + Infrastructure> ForgeAPI<F> {
 impl ForgeAPI<ForgeServices<ForgeInfra>> {
     pub fn init(restricted: bool, workflow_path: Option<PathBuf>) -> Self {
         let infra = Arc::new(ForgeInfra::new(restricted));
-        let app = Arc::new(ForgeServices::new(infra));
-        ForgeAPI::new(app, workflow_path)
+        let app = Arc::new(ForgeServices::new(infra, workflow_path));
+        ForgeAPI::new(app)
     }
 }
 
@@ -76,7 +73,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn load(&self) -> anyhow::Result<Workflow> {
-        self.loader.load().await
+        self.app.loader_service().load().await
     }
 
     async fn conversation(

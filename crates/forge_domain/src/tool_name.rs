@@ -9,7 +9,18 @@ impl ToolName {
         ToolName(value.to_string())
     }
     pub fn prefixed(prefix: impl ToString, tool_name: impl ToString) -> Self {
-        let input = format!("{}-{}", prefix.to_string(), tool_name.to_string());
+        let prefix = prefix
+            .to_string()
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+            .collect::<String>();
+        let prefix = if prefix.len() > 10 {
+            prefix[prefix.len() - 10..].to_string()
+        } else {
+            prefix
+        };
+
+        let input = format!("{}-forgestrip-{}", prefix, tool_name.to_string());
 
         if input.is_empty() {
             panic!("Input string cannot be null or empty");
@@ -27,6 +38,10 @@ impl ToolName {
         } else {
             ToolName(formatted)
         }
+    }
+    pub fn striped_prefix(&self) -> String {
+        let split = self.0.split("-forgestrip-").collect::<Vec<&str>>();
+        split.get(1).unwrap_or(&self.0.as_str()).to_string()
     }
 }
 

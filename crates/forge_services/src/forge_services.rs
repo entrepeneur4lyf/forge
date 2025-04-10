@@ -1,13 +1,16 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use forge_domain::Services;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
+use crate::loader::ForgeLoaderService;
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
+use crate::mcp::ForgeMcp;
 
 /// ForgeApp is the main application container that implements the App trait.
 /// It provides access to all core services required by the application.
@@ -23,18 +26,23 @@ pub struct ForgeServices<F> {
     conversation_service: ForgeConversationService,
     prompt_service: ForgeTemplateService<F, ForgeToolService>,
     attachment_service: ForgeChatRequest<F>,
+    loader: ForgeLoaderService<F>,
+    mcp_service: ForgeMcp<F>,
 }
 
 impl<F: Infrastructure> ForgeServices<F> {
-    pub fn new(infra: Arc<F>) -> Self {
+    pub fn new(infra: Arc<F>, workflow_path: Option<PathBuf>) -> Self {
         let tool_service = Arc::new(ForgeToolService::new(infra.clone()));
+        let loader = ForgeLoaderService::new(infra.clone(), workflow_path);
         Self {
             infra: infra.clone(),
             provider_service: ForgeProviderService::new(infra.clone()),
             conversation_service: ForgeConversationService::new(),
             prompt_service: ForgeTemplateService::new(infra.clone(), tool_service.clone()),
             tool_service,
-            attachment_service: ForgeChatRequest::new(infra),
+            attachment_service: ForgeChatRequest::new(infra.clone()),
+            mcp_service: ForgeMcp::new(loader.clone()),
+            loader,
         }
     }
 }
@@ -46,6 +54,8 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type TemplateService = ForgeTemplateService<F, ForgeToolService>;
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
+    type LoaderService = ForgeLoaderService<F>;
+    type McpService = ForgeMcp<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service
@@ -69,6 +79,13 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
+    }
+    fn loader_service(&self) -> &ForgeLoaderService<F> {
+        &self.loader
+    }
+
+    fn mcp_service(&self) -> &Self::McpService {
+        &self.mcp_service
     }
 }
 

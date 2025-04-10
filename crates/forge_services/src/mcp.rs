@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{McpHttpServerConfig, RunnableService, Services, ToolDefinition, ToolName, VERSION};
-use forge_services::Infrastructure;
+use forge_domain::{LoaderService, McpHttpServerConfig, McpService, RunnableService, Services, ToolDefinition, ToolName, VERSION};
 use rmcp::model::{CallToolRequestParam, CallToolResult, ClientInfo, Implementation};
 use rmcp::ServiceExt;
 use serde_json::Value;
 use tokio::sync::Mutex;
-use forge_api::ForgeLoaderService;
+use crate::Infrastructure;
+use crate::loader::ForgeLoaderService;
 
 struct ServerHolder {
     client: Arc<RunnableService>,
@@ -27,7 +27,7 @@ pub struct ForgeMcp<F> {
     loader: ForgeLoaderService<F>,
 }
 
-impl<F> ForgeMcp<F> {
+impl<F: Infrastructure> ForgeMcp<F> {
     pub fn new(loader: ForgeLoaderService<F>) -> Self {
         Self { servers: Arc::new(Mutex::new(HashMap::new())), loader }
     }
@@ -38,9 +38,53 @@ impl<F> ForgeMcp<F> {
             client_info: Implementation { name: "Forge".to_string(), version: VERSION.to_string() },
         }
     }
+    async fn start_http_server(
+        &self,
+        server_name: &str,
+        config: McpHttpServerConfig,
+    ) -> anyhow::Result<()> {
+        let transport = rmcp::transport::SseTransport::start(config.url)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to start server: {e}"))?;
+
+        let client = Self::client_info()
+            .serve(transport)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to serve client: {e}"))?;
+
+        let tools = client
+            .list_tools(None)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to list tools: {e}"))?;
+        let client = Arc::new(RunnableService::Http(client));
+
+        let mut lock = self.servers.lock().await;
+        for tool in tools.tools.into_iter() {
+            let tool_name = ToolName::prefixed(hex::encode(server_name.as_bytes()), tool.name);
+            lock.insert(
+                tool_name.clone(),
+                ServerHolder {
+                    client: client.clone(),
+                    tool_definition: ToolDefinition {
+                        name: tool_name,
+                        description: tool.description.unwrap_or_default().to_string(),
+                        input_schema: serde_json::from_str(&serde_json::to_string(
+                            &tool.input_schema,
+                        )?)?,
+                        output_schema: None,
+                    },
+                    server_name: server_name.to_string(),
+                },
+            );
+        }
+        drop(lock);
+
+        Ok(())
+    }
 }
 
-impl<F: Services + Infrastructure> ForgeMcp<F> {
+#[async_trait::async_trait]
+impl<F: Infrastructure> McpService for ForgeMcp<F> {
     async fn init_mcp(&self) -> anyhow::Result<()> {
         let _ = self.stop_all_servers().await;
         match self.loader.load().await?.mcp {
@@ -53,9 +97,6 @@ impl<F: Services + Infrastructure> ForgeMcp<F> {
                             .map(|(server_name, server)| {
                                 let server_config = server.clone();
                                 async move {
-                                    if self.is_server_running(server_name).await? {
-                                        return Ok(());
-                                    }
                                     self.start_http_server(server_name, server_config).await?;
                                     Ok(())
                                 }
@@ -83,80 +124,6 @@ impl<F: Services + Infrastructure> ForgeMcp<F> {
             .collect()
     }
 
-    async fn is_server_running(&self, server_name: &str) -> anyhow::Result<bool> {
-        let servers = self.servers.lock().await;
-        Ok(servers.contains_key(&ToolName::new(server_name)))
-    }
-
-    async fn start_http_server(
-        &self,
-        server_name: &str,
-        config: McpHttpServerConfig,
-    ) -> anyhow::Result<()> {
-        let transport = rmcp::transport::SseTransport::start(config.url)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to start server: {e}"))?;
-
-        let client = Self::client_info()
-            .serve(transport)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to serve client: {e}"))?;
-
-        let tools = client
-            .list_tools(None)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to list tools: {e}"))?;
-        let client = Arc::new(RunnableService::Http(client));
-
-        let mut lock = self.servers.lock().await;
-        for tool in tools.tools.into_iter() {
-            let tool_name = ToolName::prefixed(server_name, tool.name);
-            lock.insert(
-                tool_name.clone(),
-                ServerHolder {
-                    client: client.clone(),
-                    tool_definition: ToolDefinition {
-                        name: tool_name,
-                        description: tool.description.unwrap_or_default().to_string(),
-                        input_schema: serde_json::from_str(&serde_json::to_string(
-                            &tool.input_schema,
-                        )?)?,
-                        output_schema: None,
-                    },
-                    server_name: server_name.to_string(),
-                },
-            );
-        }
-        drop(lock);
-
-        Ok(())
-    }
-
-    async fn stop_server(&self, server_name: &str) -> anyhow::Result<()> {
-        let servers = self.servers.lock().await;
-        let tool_names = servers
-            .iter()
-            .filter(|(_, s)| s.server_name == server_name)
-            .map(|(k, _)| k.clone())
-            .collect::<Vec<_>>();
-
-        if tool_names.is_empty() {
-            return Err(anyhow::anyhow!("No server found with name {}", server_name));
-        }
-        let mut lock = self.servers.lock().await;
-        for tool_name in tool_names {
-            if let Some(removed) = lock.remove(&tool_name) {
-                Arc::into_inner(removed.client)
-                    .context(anyhow::anyhow!("Failed to stop server"))?
-                    .cancel()
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Failed to stop server: {e}"))?;
-            }
-        }
-        drop(lock);
-        Ok(())
-    }
-
     async fn stop_all_servers(&self) -> anyhow::Result<()> {
         let mut servers = self.servers.lock().await;
         for (name, server) in servers.drain() {
@@ -180,12 +147,13 @@ impl<F: Services + Infrastructure> ForgeMcp<F> {
     }
 
     async fn call_tool(&self, tool_name: &str, arguments: Value) -> anyhow::Result<CallToolResult> {
+        let tool_name = ToolName::new(tool_name);
         let servers = self.servers.lock().await;
-        if let Some(server) = servers.get(&ToolName::new(tool_name)) {
+        if let Some(server) = servers.get(&tool_name) {
             Ok(server
                 .client
                 .call_tool(CallToolRequestParam {
-                    name: Cow::Owned(tool_name.to_string()),
+                    name: Cow::Owned(tool_name.striped_prefix()),
                     arguments: arguments.as_object().cloned(),
                 })
                 .await?)

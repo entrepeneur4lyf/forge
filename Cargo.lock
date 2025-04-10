@@ -984,21 +984,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "forge_mcp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "forge_api",
- "forge_domain",
- "forge_services",
- "futures",
- "rmcp",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "forge_provider"
 version = "0.1.0"
 dependencies = [
@@ -1044,18 +1029,22 @@ dependencies = [
  "futures",
  "glob",
  "handlebars",
+ "hex",
  "html2md",
  "insta",
+ "merge",
  "mockito",
  "moka2",
  "nom 8.0.0",
  "pretty_assertions",
  "regex",
  "reqwest 0.12.12",
+ "rmcp",
  "rust-embed",
  "schemars",
  "serde",
  "serde_json",
+ "serde_yaml",
  "strum 0.27.1",
  "strum_macros 0.27.1",
  "syn 2.0.98",
