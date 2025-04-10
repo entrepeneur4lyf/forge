@@ -40,10 +40,6 @@ pub struct McpConfig {
     /// MCP servers
     #[merge(strategy = crate::merge::option)]
     pub fs: Option<HashMap<String, McpFsServerConfig>>,
-    // /// Filesystem roots that client can access
-    // #[merge(strategy = crate::merge::vec::append)]
-    // #[serde(default)]
-    // pub roots: Vec<McpRoot>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
@@ -68,20 +64,6 @@ pub struct McpHttpServerConfig {
     #[merge(strategy = crate::merge::std::overwrite)]
     pub url: String,
 }
-
-/*
-TODO: impl this later
-/// Filesystem root that can be accessed by MCP servers
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
-pub struct McpRoot {
-    /// URI of the filesystem root (file:// URI)
-    #[merge(strategy = crate::merge::std::overwrite)]
-    pub uri: String,
-    /// Display name for the root
-    #[merge(strategy = crate::merge::option)]
-    pub name: Option<String>,
-}*/
-
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
