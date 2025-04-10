@@ -22,10 +22,6 @@ impl ToolName {
 
         let input = format!("{}-forgestrip-{}", prefix, tool_name.to_string());
 
-        if input.is_empty() {
-            panic!("Input string cannot be null or empty");
-        }
-
         // Keep only alphanumeric characters, underscores, or hyphens
         let formatted: String = input
             .chars()
