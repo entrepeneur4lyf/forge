@@ -4,8 +4,9 @@ use std::sync::Arc;
 use anyhow::Context;
 use forge_domain::{LoaderService, Workflow};
 use merge::Merge;
-use crate::{FsReadService, Infrastructure};
+
 use crate::forge_default::create_default_workflow;
+use crate::{FsReadService, Infrastructure};
 
 /// Represents the possible sources of a workflow configuration
 enum WorkflowSource<'a> {
@@ -28,10 +29,7 @@ pub struct ForgeLoaderService<F> {
 
 impl<F> ForgeLoaderService<F> {
     pub fn new(app: Arc<F>, path: Option<PathBuf>) -> Self {
-        Self {
-            app,
-            path,
-        }
+        Self { app, path }
     }
 }
 

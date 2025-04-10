@@ -19,11 +19,11 @@ pub struct Workflow {
     #[merge(strategy = crate::merge::vec::append)]
     #[serde(default)]
     pub commands: Vec<Command>,
-    
+
     #[merge(strategy = crate::merge::option)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<ModelId>,
-    
+
     /// Model Context Protocol (MCP) configuration
     #[merge(strategy = crate::merge::option)]
     pub mcp: Option<McpConfig>,

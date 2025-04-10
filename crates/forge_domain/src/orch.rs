@@ -248,22 +248,28 @@ impl<A: Services> Orchestrator<A> {
 
             self.dispatch_spawned(event).await?;
             Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
+        } else if self
+            .services
+            .tool_service()
+            .list()
+            .iter()
+            .any(|v| tool_call.name.eq(&v.name))
+        {
+            Ok(self.services.tool_service().call(tool_call.clone()).await)
         } else {
-            if self.services.tool_service().list().iter().any(|v| tool_call.name.eq(&v.name)) {
-                Ok(self.services.tool_service().call(tool_call.clone()).await)
-            }else {
-                self.services.mcp_service().init_mcp().await?;
-                let result =self.services.mcp_service().call_tool(tool_call.name.as_str(), tool_call.arguments.clone()).await?;
-                let _ = self.services.mcp_service().stop_all_servers().await;
-                Ok(
-                    ToolResult {
-                        name: tool_call.name.clone(),
-                        call_id: tool_call.call_id.clone(),
-                        content: serde_json::to_string(&result.content)?,
-                        is_error: result.is_error.unwrap_or_default(),
-                    }
-                )
-            }
+            self.services.mcp_service().init_mcp().await?;
+            let result = self
+                .services
+                .mcp_service()
+                .call_tool(tool_call.name.as_str(), tool_call.arguments.clone())
+                .await?;
+            let _ = self.services.mcp_service().stop_all_servers().await;
+            Ok(ToolResult {
+                name: tool_call.name.clone(),
+                call_id: tool_call.call_id.clone(),
+                content: serde_json::to_string(&result.content)?,
+                is_error: result.is_error.unwrap_or_default(),
+            })
         }
     }
 

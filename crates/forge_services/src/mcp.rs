@@ -6,15 +6,21 @@ use std::process::Stdio;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{LoaderService, McpFsServerConfig, McpHttpServerConfig, McpService, RunnableService, Services, ToolDefinition, ToolName, VERSION};
-use rmcp::model::{CallToolRequestParam, CallToolResult, ClientInfo, Implementation, ListToolsResult};
-use rmcp::ServiceExt;
+use forge_domain::{
+    LoaderService, McpFsServerConfig, McpHttpServerConfig, McpService, RunnableService, Services,
+    ToolDefinition, ToolName, VERSION,
+};
+use rmcp::model::{
+    CallToolRequestParam, CallToolResult, ClientInfo, Implementation, ListToolsResult,
+};
 use rmcp::transport::TokioChildProcess;
+use rmcp::ServiceExt;
 use serde_json::Value;
-use tokio::sync::Mutex;
 use tokio::process::Command;
-use crate::Infrastructure;
+use tokio::sync::Mutex;
+
 use crate::loader::ForgeLoaderService;
+use crate::Infrastructure;
 
 struct ServerHolder {
     client: Arc<RunnableService>,
@@ -42,7 +48,12 @@ impl<F: Infrastructure> ForgeMcp<F> {
         }
     }
 
-    async fn insert_tools(&self, server_name: &str, tools: ListToolsResult, client: Arc<RunnableService>) -> anyhow::Result<()> {
+    async fn insert_tools(
+        &self,
+        server_name: &str,
+        tools: ListToolsResult,
+        client: Arc<RunnableService>,
+    ) -> anyhow::Result<()> {
         let mut lock = self.servers.lock().await;
         for tool in tools.tools.into_iter() {
             let tool_name = ToolName::prefixed(server_name, tool.name);
@@ -78,7 +89,7 @@ impl<F: Infrastructure> ForgeMcp<F> {
                 command.env(key, value);
             }
         }
-        
+
         let client = ().serve(TokioChildProcess::new(command.args(config.args))?).await?;
         let tools = client
             .list_tools(None)
@@ -131,10 +142,12 @@ impl<F: Infrastructure> McpService for ForgeMcp<F> {
                     let http_results: Vec<anyhow::Result<()>> = futures::future::join_all(
                         http_servers
                             .iter()
-                            .map(|(server_name, server)| self.start_http_server(server_name, server.clone()))
+                            .map(|(server_name, server)| {
+                                self.start_http_server(server_name, server.clone())
+                            })
                             .collect::<Vec<_>>(),
                     )
-                        .await;
+                    .await;
 
                     for i in http_results {
                         if let Err(e) = i {
@@ -147,10 +160,12 @@ impl<F: Infrastructure> McpService for ForgeMcp<F> {
                     let fs_results: Vec<anyhow::Result<()>> = futures::future::join_all(
                         fs_servers
                             .iter()
-                            .map(|(server_name, server)| self.start_fs_server(server_name, server.clone()))
+                            .map(|(server_name, server)| {
+                                self.start_fs_server(server_name, server.clone())
+                            })
                             .collect::<Vec<_>>(),
                     )
-                        .await;
+                    .await;
 
                     for i in fs_results {
                         if let Err(e) = i {

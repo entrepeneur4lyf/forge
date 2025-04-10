@@ -6,11 +6,11 @@ use forge_domain::Services;
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
 use crate::loader::ForgeLoaderService;
+use crate::mcp::ForgeMcp;
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
-use crate::mcp::ForgeMcp;
 
 /// ForgeApp is the main application container that implements the App trait.
 /// It provides access to all core services required by the application.

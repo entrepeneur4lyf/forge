@@ -1,13 +1,17 @@
-use rmcp::model::{CallToolRequestParam, CallToolResult, InitializeRequestParam};
-use rmcp::service::{QuitReason, RunningService};
-use rmcp::{RoleClient, ServiceError};
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use rmcp::model::{CallToolRequestParam, CallToolResult, InitializeRequestParam};
+use rmcp::service::{QuitReason, RunningService};
+use rmcp::{RoleClient, ServiceError};
 use serde_json::Value;
 use tokio::task::JoinError;
 
-use crate::{Agent, Attachment, ChatCompletionMessage, Compact, Context, Conversation, ConversationId, Environment, Event, EventContext, Model, ModelId, ResultStream, SystemContext, Template, ToolCallFull, ToolDefinition, ToolResult, Workflow};
+use crate::{
+    Agent, Attachment, ChatCompletionMessage, Compact, Context, Conversation, ConversationId,
+    Environment, Event, EventContext, Model, ModelId, ResultStream, SystemContext, Template,
+    ToolCallFull, ToolDefinition, ToolResult, Workflow,
+};
 
 pub enum RunnableService {
     Http(RunningService<RoleClient, InitializeRequestParam>),
