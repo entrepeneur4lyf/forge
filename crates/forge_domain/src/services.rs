@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use rmcp::model::{CallToolRequestParam, CallToolResult, InitializeRequestParam};
 use rmcp::service::{QuitReason, RunningService};
