@@ -3,9 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use forge_domain::{LoaderService, Workflow};
-use merge::Merge;
 
-use crate::forge_default::create_default_workflow;
 use crate::{FsReadService, Infrastructure};
 
 /// Represents the possible sources of a workflow configuration
@@ -46,11 +44,7 @@ impl<F: Infrastructure> LoaderService for ForgeLoaderService<F> {
         // Load the workflow based on its source
         match source {
             WorkflowSource::ExplicitPath(path) => self.load_from_explicit_path(path).await,
-            WorkflowSource::Default => {
-                // Use the programmatically created workflow
-                // This is the preferred method as it's type-safe
-                Ok(create_default_workflow())
-            }
+            WorkflowSource::Default => Ok(Workflow::default()),
             WorkflowSource::ProjectConfig => self.load_with_project_config().await,
         }
     }
@@ -84,11 +78,9 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
                     project_path.display()
                 )
             })?;
-
         // Merge workflows with project taking precedence
-        let mut merged_workflow = create_default_workflow();
+        let mut merged_workflow = Workflow::default();
         merged_workflow.merge(project_workflow);
-
         Ok(merged_workflow)
     }
 }

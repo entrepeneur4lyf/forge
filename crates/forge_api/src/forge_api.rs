@@ -10,7 +10,6 @@ use serde_json::Value;
 
 use crate::executor::ForgeExecutorService;
 use crate::suggestion::ForgeSuggestionService;
-use crate::API;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
@@ -57,8 +56,14 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         Ok(self.executor_service.chat(chat).await?)
     }
 
-    async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
-        self.app.conversation_service().create(workflow).await
+    async fn init<W: Into<Workflow> + Send + Sync>(
+        &self,
+        workflow: W,
+    ) -> anyhow::Result<ConversationId> {
+        self.app
+            .conversation_service()
+            .create(workflow.into())
+            .await
     }
 
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()> {
@@ -72,7 +77,8 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn load(&self) -> anyhow::Result<Workflow> {
-        self.app.loader_service().load().await
+        let workflow = self.app.loader_service().load().await?;
+        Ok(workflow)
     }
 
     async fn conversation(
