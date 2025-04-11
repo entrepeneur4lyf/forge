@@ -15,9 +15,6 @@ use serde_json::Value;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use crate::loader::ForgeLoaderService;
-use crate::Infrastructure;
-
 struct ServerHolder {
     client: Arc<RunnableService>,
     tool_definition: ToolDefinition,
@@ -26,13 +23,13 @@ struct ServerHolder {
 /// Currently just a placeholder structure, to be implemented
 /// when we add actual server functionality.
 #[derive(Clone)]
-pub struct ForgeMcp<F> {
+pub struct ForgeMcp {
     servers: Arc<Mutex<HashMap<ToolName, ServerHolder>>>,
-    loader: ForgeLoaderService<F>,
+    loader: Arc<dyn LoaderService>,
 }
 
-impl<F: Infrastructure> ForgeMcp<F> {
-    pub fn new(loader: ForgeLoaderService<F>) -> Self {
+impl ForgeMcp {
+    pub fn new(loader: Arc<dyn LoaderService>) -> Self {
         Self { servers: Arc::new(Mutex::new(HashMap::new())), loader }
     }
     pub fn client_info() -> ClientInfo {
@@ -126,7 +123,7 @@ impl<F: Infrastructure> ForgeMcp<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> McpService for ForgeMcp<F> {
+impl McpService for ForgeMcp {
     async fn init_mcp(&self) -> anyhow::Result<()> {
         let _ = self.stop_all_servers().await;
         match self.loader.load().await?.mcp {
@@ -212,12 +209,108 @@ impl<F: Infrastructure> McpService for ForgeMcp<F> {
             Ok(server
                 .client
                 .call_tool(CallToolRequestParam {
-                    name: Cow::Owned(tool_name.into_string()),
+                    name: Cow::Owned(tool_name.strip_prefix()),
                     arguments: arguments.as_object().cloned(),
                 })
                 .await?)
         } else {
             Err(anyhow::anyhow!("Server not found"))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    use forge_domain::{LoaderService, McpConfig, McpHttpServerConfig, McpService, Workflow};
+    use rmcp::model::{CallToolResult, Content};
+    use rmcp::transport::SseServer;
+    use rmcp::{tool, ServerHandler};
+    use tokio::sync::Mutex;
+    use tokio_util::sync::CancellationToken;
+
+    use crate::mcp::ForgeMcp;
+
+    struct MockLoaderService {
+        workflow: Workflow,
+    }
+
+    impl MockLoaderService {
+        fn from_http<I: IntoIterator<Item = (String, McpHttpServerConfig)>>(http: I) -> Self {
+            Self {
+                workflow: Workflow::default()
+                    .mcp(McpConfig::default().http(http.into_iter().collect())),
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LoaderService for MockLoaderService {
+        async fn load(&self) -> anyhow::Result<Workflow> {
+            Ok(self.workflow.clone())
+        }
+    }
+
+    const MOCK_URL: &str = "127.0.0.1:19194";
+
+    #[derive(Clone)]
+    pub struct Counter {
+        counter: Arc<Mutex<i32>>,
+    }
+
+    #[tool(tool_box)]
+    impl Counter {
+        pub fn new() -> Self {
+            Self { counter: Arc::new(Mutex::new(0)) }
+        }
+
+        #[tool(description = "Increment the counter by 1")]
+        async fn increment(&self) -> anyhow::Result<CallToolResult, rmcp::Error> {
+            let mut counter = self.counter.lock().await;
+            *counter += 1;
+            Ok(CallToolResult::success(vec![Content::text(
+                counter.to_string(),
+            )]))
+        }
+    }
+
+    #[tool(tool_box)]
+    impl ServerHandler for Counter {}
+
+    async fn start_server() -> anyhow::Result<CancellationToken> {
+        let ct = SseServer::serve(MOCK_URL.parse()?)
+            .await?
+            .with_service(Counter::new);
+        Ok(ct)
+    }
+
+    #[tokio::test]
+    async fn test_increment() {
+        let ct = start_server().await.unwrap();
+
+        let mut map = HashMap::new();
+        map.insert(
+            "test".to_string(),
+            McpHttpServerConfig::default().url(format!("http://{MOCK_URL}/sse")),
+        );
+        let mcp = ForgeMcp::new(Arc::new(MockLoaderService::from_http(map)));
+        mcp.init_mcp().await.unwrap();
+        let tools = mcp.list_tools().await.unwrap();
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name.strip_prefix(), "increment");
+
+        let one = mcp
+            .call_tool("test-forgestrip-increment", serde_json::json!({}))
+            .await
+            .unwrap();
+        assert_eq!(one.content[0].as_text().unwrap().text, "1");
+        let two = mcp
+            .call_tool("test-forgestrip-increment", serde_json::json!({}))
+            .await
+            .unwrap();
+        assert_eq!(two.content[0].as_text().unwrap().text, "2");
+        ct.cancel();
     }
 }

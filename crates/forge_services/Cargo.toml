@@ -52,3 +52,4 @@ mockito.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
 uuid.workspace = true
+tokio-util.workspace = true

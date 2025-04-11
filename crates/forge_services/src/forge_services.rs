@@ -26,14 +26,14 @@ pub struct ForgeServices<F> {
     conversation_service: ForgeConversationService,
     prompt_service: ForgeTemplateService<F, ForgeToolService>,
     attachment_service: ForgeChatRequest<F>,
-    loader: ForgeLoaderService<F>,
-    mcp_service: ForgeMcp<F>,
+    loader: Arc<ForgeLoaderService<F>>,
+    mcp_service: ForgeMcp,
 }
 
 impl<F: Infrastructure> ForgeServices<F> {
     pub fn new(infra: Arc<F>, workflow_path: Option<PathBuf>) -> Self {
         let tool_service = Arc::new(ForgeToolService::new(infra.clone()));
-        let loader = ForgeLoaderService::new(infra.clone(), workflow_path);
+        let loader = Arc::new(ForgeLoaderService::new(infra.clone(), workflow_path));
         Self {
             infra: infra.clone(),
             provider_service: ForgeProviderService::new(infra.clone()),
@@ -55,7 +55,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
     type LoaderService = ForgeLoaderService<F>;
-    type McpService = ForgeMcp<F>;
+    type McpService = ForgeMcp;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service

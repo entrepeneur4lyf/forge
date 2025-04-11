@@ -30,8 +30,9 @@ pub struct Workflow {
 }
 
 /// MCP client configuration
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[serde(rename_all = "camelCase")]
+#[setters(strip_option)]
 pub struct McpConfig {
     /// MCP HTTP servers
     #[merge(strategy = crate::merge::option)]
@@ -58,7 +59,8 @@ pub struct McpFsServerConfig {
     pub env: Option<HashMap<String, String>>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
+#[setters(into)]
 pub struct McpHttpServerConfig {
     /// Url of the MCP server
     #[merge(strategy = crate::merge::std::overwrite)]
