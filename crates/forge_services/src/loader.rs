@@ -5,7 +5,7 @@ use anyhow::Context;
 use forge_domain::{LoaderService, Workflow};
 
 use crate::{FsReadService, Infrastructure};
-
+use merge::Merge;
 /// Represents the possible sources of a workflow configuration
 enum WorkflowSource<'a> {
     /// Explicitly provided path

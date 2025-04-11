@@ -11,7 +11,7 @@ use crate::{Agent, AgentId, ModelId};
 /// Configuration for a workflow that contains all settings
 /// required to initialize a workflow.
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
-#[setters(strip_option)]
+#[setters(strip_option, into)]
 pub struct Workflow {
     /// Agents that are part of this workflow
     #[merge(strategy = crate::merge::vec::unify_by_key)]
