@@ -1,16 +1,9 @@
-#![allow(unused)]
-
-#[cfg(test)]
-mod tests;
-
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::process::Stdio;
 use std::sync::Arc;
 
-use anyhow::Context;
 use forge_domain::{
-    LoaderService, McpFsServerConfig, McpHttpServerConfig, McpService, RunnableService, Services,
+    LoaderService, McpFsServerConfig, McpHttpServerConfig, McpService, RunnableService,
     ToolDefinition, ToolName, VERSION,
 };
 use rmcp::model::{
@@ -28,7 +21,6 @@ use crate::Infrastructure;
 struct ServerHolder {
     client: Arc<RunnableService>,
     tool_definition: ToolDefinition,
-    server_name: String,
 }
 
 /// Currently just a placeholder structure, to be implemented
@@ -72,7 +64,6 @@ impl<F: Infrastructure> ForgeMcp<F> {
                         )?)?,
                         output_schema: None,
                     },
-                    server_name: server_name.to_string(),
                 },
             );
         }
