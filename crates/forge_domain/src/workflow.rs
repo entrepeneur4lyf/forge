@@ -94,8 +94,7 @@ pub struct McpFsServerConfig {
     pub env: Option<HashMap<String, String>>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
-#[setters(into)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
 pub struct McpHttpServerConfig {
     /// Url of the MCP server
     #[merge(strategy = crate::merge::std::overwrite)]

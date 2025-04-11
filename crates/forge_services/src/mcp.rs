@@ -293,7 +293,7 @@ mod tests {
         let mut map = HashMap::new();
         map.insert(
             "test".to_string(),
-            McpHttpServerConfig::default().url(format!("http://{MOCK_URL}/sse")),
+            McpHttpServerConfig { url: format!("http://{MOCK_URL}/sse") },
         );
         let mcp = ForgeMcp::new(Arc::new(MockLoaderService::from_http(map)));
         mcp.init_mcp().await.unwrap();
