@@ -214,15 +214,6 @@ impl<F: Infrastructure> McpService for ForgeMcp<F> {
         Ok(())
     }
 
-    async fn get_service(&self, tool_name: &str) -> anyhow::Result<Arc<RunnableService>> {
-        let servers = self.servers.lock().await;
-        if let Some(server) = servers.get(&ToolName::new(tool_name)) {
-            Ok(server.client.clone())
-        } else {
-            Err(anyhow::anyhow!("Server not found"))
-        }
-    }
-
     async fn call_tool(&self, tool_name: &str, arguments: Value) -> anyhow::Result<CallToolResult> {
         let tool_name = ToolName::new(tool_name);
         let servers = self.servers.lock().await;

@@ -140,9 +140,6 @@ pub trait McpService: Send + Sync {
     /// Stop all MCP servers
     async fn stop_all_servers(&self) -> anyhow::Result<()>;
 
-    /// Get server
-    async fn get_service(&self, tool_name: &str) -> anyhow::Result<Arc<RunnableService>>;
-
     /// Call tool
     async fn call_tool(&self, tool_name: &str, arguments: Value) -> anyhow::Result<CallToolResult>;
 }

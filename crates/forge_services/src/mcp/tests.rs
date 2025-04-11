@@ -259,10 +259,6 @@ mod tests_mcp {
             Ok(())
         }
 
-        async fn get_service(&self, _tool_name: &str) -> anyhow::Result<Arc<RunnableService>> {
-            Err(anyhow::anyhow!("Not implemented for tests"))
-        }
-
         async fn call_tool(
             &self,
             _tool_name: &str,
@@ -327,12 +323,6 @@ mod tests_mcp {
         let infra = TestInfra::new();
         let loader = ForgeLoaderService::new(Arc::new(infra), None);
         let mcp_service = ForgeMcp::new(loader);
-
-        // Test getting a non-existent service
-        let result = mcp_service.get_service("non_existent_tool").await;
-        assert!(result.is_err());
-        let err = result.err().unwrap();
-        assert_eq!(err.to_string(), "Server not found");
 
         // Test calling a non-existent tool
         let result = mcp_service.call_tool("non_existent_tool", json!({})).await;
