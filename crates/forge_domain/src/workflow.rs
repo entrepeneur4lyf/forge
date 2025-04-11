@@ -64,7 +64,6 @@ pub struct Workflow {
     pub mcp: Option<McpConfig>,
 }
 
-
 /// MCP client configuration
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[serde(rename_all = "camelCase")]

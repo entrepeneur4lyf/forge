@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use forge_domain::{LoaderService, Workflow};
+use merge::Merge;
 
 use crate::{FsReadService, Infrastructure};
-use merge::Merge;
 /// Represents the possible sources of a workflow configuration
 enum WorkflowSource<'a> {
     /// Explicitly provided path

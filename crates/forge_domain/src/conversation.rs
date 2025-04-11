@@ -289,7 +289,12 @@ mod tests {
         let agent1 = Agent::new("agent1");
         let agent2 = Agent::new("agent2");
 
-        let workflow = Workflow::default().agents(vec![agent1, agent2]).model(ModelId::new("test-model")).max_walker_depth(5usize).custom_rules("Be helpful").temperature(Temperature::new(0.7).unwrap());
+        let workflow = Workflow::default()
+            .agents(vec![agent1, agent2])
+            .model(ModelId::new("test-model"))
+            .max_walker_depth(5usize)
+            .custom_rules("Be helpful")
+            .temperature(Temperature::new(0.7).unwrap());
 
         // Act
         let conversation = super::Conversation::new(id.clone(), workflow);
@@ -321,7 +326,12 @@ mod tests {
         // Agent without specific settings
         let agent2 = Agent::new("agent2");
 
-        let workflow = Workflow::default().agents(vec![agent1, agent2]).model(ModelId::new("default-model")).max_walker_depth(5usize).custom_rules("Default rules").temperature(Temperature::new(0.7).unwrap());
+        let workflow = Workflow::default()
+            .agents(vec![agent1, agent2])
+            .model(ModelId::new("default-model"))
+            .max_walker_depth(5usize)
+            .custom_rules("Default rules")
+            .temperature(Temperature::new(0.7).unwrap());
 
         // Act
         let conversation = super::Conversation::new(id.clone(), workflow);
@@ -376,7 +386,9 @@ mod tests {
             },
         ];
 
-        let workflow = Workflow::default().agents(vec![main_agent, other_agent]).commands(commands.clone());
+        let workflow = Workflow::default()
+            .agents(vec![main_agent, other_agent])
+            .commands(commands.clone());
 
         // Act
         let conversation = super::Conversation::new(id.clone(), workflow);
