@@ -310,7 +310,7 @@ impl<F: API> UI<F> {
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
                     self.api.upsert_conversation(conversation).await?;
-                    Ok(InitConversation { conversation_id: conversation_id, workflow: config })
+                    Ok(InitConversation { conversation_id, workflow: config })
                 } else {
                     let conversation_id = self.api.init(config.clone()).await?;
                     self.state.conversation_id = Some(conversation_id.clone());

@@ -143,12 +143,10 @@ impl ForgeMcp {
                                 .await
                             {
                                 None
+                            } else if server.url.is_some() {
+                                Some(self.start_http_server(server_name, server.clone()).await)
                             } else {
-                                if server.url.is_some() {
-                                    Some(self.start_http_server(server_name, server.clone()).await)
-                                } else {
-                                    Some(self.start_fs_server(server_name, server.clone()).await)
-                                }
+                                Some(self.start_fs_server(server_name, server.clone()).await)
                             }
                         })
                         // TODO: use flatten function provided by FuturesExt
