@@ -44,7 +44,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         self.suggestion_service.suggestions().await
     }
 
-    async fn tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
+    async fn tools(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
         self.app.tool_service().list(workflow).await
     }
 
@@ -55,9 +55,8 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     async fn chat(
         &self,
         chat: ChatRequest,
-        workflow: Workflow,
     ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
-        Ok(self.executor_service.chat(chat, workflow).await?)
+        Ok(self.executor_service.chat(chat).await?)
     }
 
     async fn init<W: Into<Workflow> + Send + Sync>(

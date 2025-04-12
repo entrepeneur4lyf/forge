@@ -13,7 +13,7 @@ pub trait API: Sync + Send {
 
     /// Provides information about the tools available in the current
     /// environment
-    async fn tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
+    async fn tools(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>>;
 
     /// Provides a list of models available in the current environment
     async fn models(&self) -> anyhow::Result<Vec<Model>>;
@@ -22,7 +22,6 @@ pub trait API: Sync + Send {
     async fn chat(
         &self,
         chat: ChatRequest,
-        workflow: Workflow,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>, anyhow::Error>>>;
 
     /// Returns the current environment

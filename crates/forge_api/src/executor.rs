@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use forge_domain::{
-    AgentMessage, ChatRequest, ChatResponse, ConversationService, Orchestrator, Services, Workflow,
+    AgentMessage, ChatRequest, ChatResponse, ConversationService, Orchestrator, Services,
 };
 use forge_stream::MpscStream;
 use tracing::error;
@@ -19,7 +19,6 @@ impl<F: Services> ForgeExecutorService<F> {
     pub async fn chat(
         &self,
         request: ChatRequest,
-        workflow: Workflow,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>>>> {
         let app = self.app.clone();
         let conversation = app
@@ -32,7 +31,7 @@ impl<F: Services> ForgeExecutorService<F> {
 
             let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
 
-            if let Err(err) = orch.dispatch(request.event, &workflow).await {
+            if let Err(err) = orch.dispatch(request.event, &request.workflow).await {
                 if let Err(e) = tx.send(Err(err)).await {
                     error!("Failed to send error to stream: {:#?}", e);
                 }

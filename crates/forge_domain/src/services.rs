@@ -49,7 +49,7 @@ pub trait ProviderService: Send + Sync + 'static {
 pub trait ToolService: Send + Sync {
     // TODO: should take `call` by reference
     async fn call(&self, call: ToolCallFull, workflow: &Workflow) -> ToolResult;
-    async fn list(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
+    async fn list(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>>;
     fn usage_prompt(&self) -> String;
 }
 

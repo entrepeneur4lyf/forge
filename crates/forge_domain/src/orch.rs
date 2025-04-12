@@ -104,7 +104,10 @@ impl<A: Services> Orchestrator<A> {
         &self,
         workflow: &Workflow,
     ) -> anyhow::Result<Vec<ToolDefinition>> {
-        self.services.tool_service().list(workflow).await
+        self.services
+            .tool_service()
+            .list(Some(workflow.clone()))
+            .await
     }
 
     async fn init_tool_definitions(

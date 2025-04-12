@@ -55,9 +55,10 @@ impl Fixture {
                 "There is a cat hidden in the codebase. What is its name?",
             ),
             conversation_id,
+            workflow,
         );
 
-        api.chat(request, workflow)
+        api.chat(request)
             .await
             .with_context(|| "Failed to initialize chat")
             .unwrap()

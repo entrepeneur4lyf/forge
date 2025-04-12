@@ -270,10 +270,14 @@ impl<F: API> UI<F> {
         let event: PartialEvent = serde_json::from_str(&json)?;
 
         // Create the chat request with the event
-        let chat = ChatRequest::new(event.into(), conversation.conversation_id);
+        let chat = ChatRequest::new(
+            event.into(),
+            conversation.conversation_id,
+            conversation.workflow,
+        );
 
         // Process the event
-        let mut stream = self.api.chat(chat, conversation.workflow).await?;
+        let mut stream = self.api.chat(chat).await?;
         self.handle_chat_stream(&mut stream).await
     }
 
@@ -335,9 +339,9 @@ impl<F: API> UI<F> {
         };
 
         // Create the chat request with the event
-        let chat = ChatRequest::new(event, conversation.conversation_id);
+        let chat = ChatRequest::new(event, conversation.conversation_id, conversation.workflow);
 
-        match self.api.chat(chat, conversation.workflow).await {
+        match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
         }
@@ -437,8 +441,8 @@ impl<F: API> UI<F> {
 
     async fn dispatch_event(&mut self, event: Event) -> Result<()> {
         let conversation = self.init_conversation().await?;
-        let chat = ChatRequest::new(event, conversation.conversation_id);
-        match self.api.chat(chat, conversation.workflow).await {
+        let chat = ChatRequest::new(event, conversation.conversation_id, conversation.workflow);
+        match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
         }

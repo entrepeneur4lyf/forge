@@ -105,7 +105,7 @@ impl ToolService for ForgeToolService {
         result
     }
 
-    async fn list(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
+    async fn list(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
         let mut tools: Vec<_> = self
             .tools
             .values()
@@ -114,8 +114,10 @@ impl ToolService for ForgeToolService {
 
         // Sorting is required to ensure system prompts are exactly the same
         tools.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
-        let mcp_tools = self.mcp_service.list_tools(workflow).await?;
-        tools.extend(mcp_tools);
+        if let Some(workflow) = workflow {
+            let mcp_tools = self.mcp_service.list_tools(&workflow).await?;
+            tools.extend(mcp_tools);
+        }
 
         Ok(tools)
     }
