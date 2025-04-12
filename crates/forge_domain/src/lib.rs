@@ -32,6 +32,7 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod workflow;
+mod mcp;
 
 pub use agent::*;
 pub use api::*;
@@ -66,6 +67,7 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
 pub use workflow::*;
+pub use mcp::*;
 
 pub const VERSION: &str = match option_env!("APP_VERSION") {
     Some(val) => val,
