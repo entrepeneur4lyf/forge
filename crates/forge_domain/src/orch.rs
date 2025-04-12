@@ -100,11 +100,18 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    async fn init_default_tool_definitions(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
+    async fn init_default_tool_definitions(
+        &self,
+        workflow: &Workflow,
+    ) -> anyhow::Result<Vec<ToolDefinition>> {
         self.services.tool_service().list(workflow).await
     }
 
-    async fn init_tool_definitions(&self, agent: &Agent, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
+    async fn init_tool_definitions(
+        &self,
+        agent: &Agent,
+        workflow: &Workflow,
+    ) -> anyhow::Result<Vec<ToolDefinition>> {
         let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
         let mut forge_tools = self.init_default_tool_definitions(workflow).await?;
 
@@ -113,11 +120,17 @@ impl<A: Services> Orchestrator<A> {
         Ok(forge_tools
             .into_iter()
             // TODO: need a better way to avoid filtering mcp tools
-            .filter(|tool| tool.name.as_str().contains("-forgestrip-") || allowed.contains(&tool.name))
+            .filter(|tool| {
+                tool.name.as_str().contains("-forgestrip-") || allowed.contains(&tool.name)
+            })
             .collect::<Vec<_>>())
     }
 
-    async fn init_agent_context(&self, agent: &Agent, workflow: &Workflow) -> anyhow::Result<Context> {
+    async fn init_agent_context(
+        &self,
+        agent: &Agent,
+        workflow: &Workflow,
+    ) -> anyhow::Result<Context> {
         let tool_defs = self.init_tool_definitions(agent, workflow).await?;
 
         // Use the agent's tool_supported flag directly instead of querying the provider
@@ -154,8 +167,8 @@ impl<A: Services> Orchestrator<A> {
     async fn collect_messages(
         &self,
         agent: &Agent,
-        mut response: impl Stream<Item=std::result::Result<ChatCompletionMessage, anyhow::Error>>
-        + std::marker::Unpin,
+        mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
+            + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
         let mut request_usage: Option<Usage> = None;
@@ -228,10 +241,14 @@ impl<A: Services> Orchestrator<A> {
         };
 
         // Execute all initialization futures in parallel
-        join_all(inactive_agents.iter().map(|id| self.wake_agent(id, workflow)))
-            .await
-            .into_iter()
-            .collect::<anyhow::Result<Vec<()>>>()?;
+        join_all(
+            inactive_agents
+                .iter()
+                .map(|id| self.wake_agent(id, workflow)),
+        )
+        .await
+        .into_iter()
+        .collect::<anyhow::Result<Vec<()>>>()?;
 
         Ok(())
     }
@@ -249,7 +266,11 @@ impl<A: Services> Orchestrator<A> {
             self.dispatch_spawned(event, workflow).await?;
             Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
         } else {
-            Ok(self.services.tool_service().call(tool_call.clone(), workflow).await)
+            Ok(self
+                .services
+                .tool_service()
+                .call(tool_call.clone(), workflow)
+                .await)
         }
     }
 
@@ -287,7 +308,12 @@ impl<A: Services> Orchestrator<A> {
     }
 
     // Create a helper method with the core functionality
-    async fn init_agent(&self, agent_id: &AgentId, event: &Event, workflow: &Workflow) -> anyhow::Result<()> {
+    async fn init_agent(
+        &self,
+        agent_id: &AgentId,
+        event: &Event,
+        workflow: &Workflow,
+    ) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
         let variables = &conversation.variables;
         debug!(
@@ -373,7 +399,9 @@ impl<A: Services> Orchestrator<A> {
                 .await?;
 
             // Get all tool results using the helper function
-            let tool_results = self.get_all_tool_results(agent, &tool_calls, workflow).await?;
+            let tool_results = self
+                .get_all_tool_results(agent, &tool_calls, workflow)
+                .await?;
 
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
@@ -430,8 +458,8 @@ impl<A: Services> Orchestrator<A> {
                 || self.init_agent(agent_id, &event, workflow),
                 is_parse_error,
             )
-                .await
-                .with_context(|| format!("Failed to initialize agent {}", *agent_id))?;
+            .await
+            .with_context(|| format!("Failed to initialize agent {}", *agent_id))?;
         }
 
         Ok(())

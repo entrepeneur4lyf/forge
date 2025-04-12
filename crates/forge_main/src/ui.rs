@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use colored::Colorize;
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, API, Workflow};
+use forge_api::{
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, Workflow,
+    API,
+};
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
 use lazy_static::lazy_static;
@@ -275,13 +278,15 @@ impl<F: API> UI<F> {
     }
 
     async fn init_conversation(&mut self) -> Result<InitConversation> {
-        match self.state.conversation_id.as_ref().zip(self.state.workflow.as_ref()) {
-            Some((id, workflow)) => Ok(
-                InitConversation {
-                    conversation_id: id.clone(),
-                    workflow: workflow.clone(),
-                },
-            ),
+        match self
+            .state
+            .conversation_id
+            .as_ref()
+            .zip(self.state.workflow.as_ref())
+        {
+            Some((id, workflow)) => {
+                Ok(InitConversation { conversation_id: id.clone(), workflow: workflow.clone() })
+            }
             None => {
                 let config = self.api.load(self.cli.workflow.as_deref()).await?;
 
@@ -305,21 +310,14 @@ impl<F: API> UI<F> {
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
                     self.api.upsert_conversation(conversation).await?;
-                    Ok(
-                        InitConversation {
-                            conversation_id: conversation_id,
-                            workflow: config,
-                        },
-                    )
+                    Ok(InitConversation { conversation_id: conversation_id, workflow: config })
                 } else {
                     let conversation_id = self.api.init(config.clone()).await?;
                     self.state.conversation_id = Some(conversation_id.clone());
-                    Ok(
-                        InitConversation {
-                            conversation_id: conversation_id.clone(),
-                            workflow: config,
-                        },
-                    )
+                    Ok(InitConversation {
+                        conversation_id: conversation_id.clone(),
+                        workflow: config,
+                    })
                 }
             }
         }
@@ -438,7 +436,7 @@ impl<F: API> UI<F> {
     }
 
     async fn dispatch_event(&mut self, event: Event) -> Result<()> {
-        let conversation= self.init_conversation().await?;
+        let conversation = self.init_conversation().await?;
         let chat = ChatRequest::new(event, conversation.conversation_id);
         match self.api.chat(chat, conversation.workflow).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,

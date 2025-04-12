@@ -1,9 +1,11 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
-use futures::FutureExt;
 
-use forge_domain::{McpServerConfig, McpService, RunnableService, ToolDefinition, ToolName, VERSION, Workflow};
+use forge_domain::{
+    McpServerConfig, McpService, RunnableService, ToolDefinition, ToolName, Workflow, VERSION,
+};
+use futures::FutureExt;
 use rmcp::model::{
     CallToolRequestParam, CallToolResult, ClientInfo, Implementation, ListToolsResult,
 };
@@ -75,7 +77,7 @@ impl ForgeMcp {
         let command = config
             .command
             .ok_or_else(|| anyhow::anyhow!("Command is required for FS server"))?;
-        
+
         let mut command = Command::new(command);
 
         if let Some(env) = config.env {
@@ -132,28 +134,33 @@ impl ForgeMcp {
             Some(config) => {
                 let http_results: Vec<Option<anyhow::Result<()>>> = futures::future::join_all(
                     config
-                            .iter()
-                            .map(|(server_name, server)| async move {
-                                if self.servers.lock().map(|v| v.values().any(|v| v.name.eq(server_name))).await {
-                                    None
+                        .iter()
+                        .map(|(server_name, server)| async move {
+                            if self
+                                .servers
+                                .lock()
+                                .map(|v| v.values().any(|v| v.name.eq(server_name)))
+                                .await
+                            {
+                                None
+                            } else {
+                                if server.url.is_some() {
+                                    Some(self.start_http_server(server_name, server.clone()).await)
                                 } else {
-                                    if server.url.is_some() {
-                                        Some(self.start_http_server(server_name, server.clone()).await)
-                                    }else {
-                                        Some(self.start_fs_server(server_name, server.clone()).await)
-                                    }
+                                    Some(self.start_fs_server(server_name, server.clone()).await)
                                 }
-                            })
-                            // TODO: use flatten function provided by FuturesExt
-                            .collect::<Vec<_>>(),
-                    )
-                        .await;
+                            }
+                        })
+                        // TODO: use flatten function provided by FuturesExt
+                        .collect::<Vec<_>>(),
+                )
+                .await;
 
-                    for i in http_results {
-                        if let Some(Err(e)) = i {
-                            tracing::error!("Failed to start server: {e}");
-                        }
+                for i in http_results {
+                    if let Some(Err(e)) = i {
+                        tracing::error!("Failed to start server: {e}");
                     }
+                }
                 Ok(())
             }
         }
@@ -174,11 +181,16 @@ impl McpService for ForgeMcp {
             .collect()
     }
 
-    async fn call_tool(&self, tool_name: &str, arguments: Value, workflow: &Workflow) -> anyhow::Result<CallToolResult> {
+    async fn call_tool(
+        &self,
+        tool_name: &str,
+        arguments: Value,
+        workflow: &Workflow,
+    ) -> anyhow::Result<CallToolResult> {
         self.init_mcp(workflow)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to init mcp: {e}"))?;
-        
+
         let tool_name = ToolName::new(tool_name);
         let servers = self.servers.lock().await;
         if let Some(server) = servers.get(&tool_name) {
@@ -214,9 +226,9 @@ mod tests {
     }
 
     impl MockLoaderService {
-        fn from_http<I: IntoIterator<Item=(String, McpServerConfig)>>(configs: I) -> Self {
+        fn from_http<I: IntoIterator<Item = (String, McpServerConfig)>>(configs: I) -> Self {
             Self {
-                workflow: Workflow::default().mcp(configs.into_iter().collect::<HashMap<_,_>>()),
+                workflow: Workflow::default().mcp(configs.into_iter().collect::<HashMap<_, _>>()),
             }
         }
     }
@@ -272,19 +284,27 @@ mod tests {
         );
         let loader = MockLoaderService::from_http(map);
         let workflow = loader.load().await.unwrap();
-        
+
         let mcp = ForgeMcp::new();
         let tools = mcp.list_tools(&workflow).await.unwrap();
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name.strip_prefix(), "increment");
 
         let one = mcp
-            .call_tool("test-forgestrip-increment", serde_json::json!({}), &workflow)
+            .call_tool(
+                "test-forgestrip-increment",
+                serde_json::json!({}),
+                &workflow,
+            )
             .await
             .unwrap();
         assert_eq!(one.content[0].as_text().unwrap().text, "1");
         let two = mcp
-            .call_tool("test-forgestrip-increment", serde_json::json!({}), &workflow)
+            .call_tool(
+                "test-forgestrip-increment",
+                serde_json::json!({}),
+                &workflow,
+            )
             .await
             .unwrap();
         assert_eq!(two.content[0].as_text().unwrap().text, "2");

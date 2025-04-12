@@ -134,7 +134,12 @@ pub trait McpService: Send + Sync {
     async fn list_tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
 
     /// Call tool
-    async fn call_tool(&self, tool_name: &str, arguments: Value, workflow: &Workflow) -> anyhow::Result<CallToolResult>;
+    async fn call_tool(
+        &self,
+        tool_name: &str,
+        arguments: Value,
+        workflow: &Workflow,
+    ) -> anyhow::Result<CallToolResult>;
 }
 
 /// Core app trait providing access to services and repositories.

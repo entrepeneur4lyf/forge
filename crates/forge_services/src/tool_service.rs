@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{McpService, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Workflow};
+use forge_domain::{
+    McpService, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Workflow,
+};
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
@@ -20,7 +22,8 @@ pub struct ForgeToolService {
 impl ForgeToolService {
     pub fn new<F: Infrastructure>(infra: Arc<F>, mcp: Arc<dyn McpService>) -> Self {
         let registry = ToolRegistry::new(infra.clone());
-        let tools: HashMap<ToolName, Tool> = registry.tools()
+        let tools: HashMap<ToolName, Tool> = registry
+            .tools()
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
             .collect::<HashMap<_, _>>();
@@ -32,26 +35,32 @@ impl ForgeToolService {
 #[async_trait::async_trait]
 impl ToolService for ForgeToolService {
     async fn call(&self, call: ToolCallFull, workflow: &Workflow) -> ToolResult {
-        if !self.tools.values().any(|v| v.definition.name.eq(&call.name)) {
-            return match self.mcp_service
+        if !self
+            .tools
+            .values()
+            .any(|v| v.definition.name.eq(&call.name))
+        {
+            return match self
+                .mcp_service
                 .call_tool(call.name.as_str(), call.arguments.clone(), workflow)
-                .await {
+                .await
+            {
                 Ok(result) => {
                     let ans = ToolResult::from(call);
                     match serde_json::to_string(&result.content) {
-                        Ok(val) => {
-                            ans.success(val)
-                        }
+                        Ok(val) => ans.success(val),
                         Err(_) => {
-                            error!(error = "Failed to serialize tool result", "Tool call failed");
+                            error!(
+                                error = "Failed to serialize tool result",
+                                "Tool call failed"
+                            );
                             ans.failure(anyhow::anyhow!("Failed to serialize tool result"))
                         }
                     }
                 }
                 Err(err) => {
                     error!(error = ?err, "Tool call failed");
-                    ToolResult::from(call)
-                        .failure(err)
+                    ToolResult::from(call).failure(err)
                 }
             };
         }
@@ -105,9 +114,7 @@ impl ToolService for ForgeToolService {
 
         // Sorting is required to ensure system prompts are exactly the same
         tools.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
-        let mcp_tools = self.mcp_service
-            .list_tools(workflow)
-            .await?;
+        let mcp_tools = self.mcp_service.list_tools(workflow).await?;
         tools.extend(mcp_tools);
 
         Ok(tools)
@@ -130,14 +137,36 @@ impl ToolService for ForgeToolService {
     }
 }
 
-/*#[cfg(test)]
+#[cfg(test)]
 mod test {
     use anyhow::bail;
     use forge_domain::{Tool, ToolCallId, ToolDefinition};
+    use rmcp::model::{CallToolResult, Content};
     use serde_json::{json, Value};
     use tokio::time;
 
     use super::*;
+
+    struct MockMcpTool;
+
+    #[async_trait::async_trait]
+    impl McpService for MockMcpTool {
+        async fn list_tools(&self, _: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
+            Ok(vec![])
+        }
+
+        async fn call_tool(
+            &self,
+            _: &str,
+            _: Value,
+            _: &Workflow,
+        ) -> anyhow::Result<CallToolResult> {
+            Ok(CallToolResult {
+                content: vec![Content::text("No tool found")],
+                is_error: Some(true),
+            })
+        }
+    }
 
     // Mock tool that always succeeds
     struct SuccessTool;
@@ -183,8 +212,25 @@ mod test {
             },
             executable: Box::new(FailureTool),
         };
+        let tools = vec![success_tool, failure_tool]
+            .into_iter()
+            .map(|tool| (tool.definition.name.clone(), tool))
+            .collect::<HashMap<_, _>>();
 
-        ForgeToolService::from_iter(vec![success_tool, failure_tool])
+        ForgeToolService { tools: Arc::new(tools), mcp_service: Arc::new(MockMcpTool) }
+    }
+
+    fn default_workflow() -> Workflow {
+        Workflow {
+            agents: vec![],
+            variables: Default::default(),
+            commands: vec![],
+            model: None,
+            max_walker_depth: None,
+            custom_rules: None,
+            temperature: None,
+            mcp: None,
+        }
     }
 
     #[tokio::test]
@@ -196,7 +242,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(call, &default_workflow()).await;
         insta::assert_snapshot!(result);
     }
 
@@ -209,7 +255,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(call, &default_workflow()).await;
         insta::assert_snapshot!(result);
     }
 
@@ -222,7 +268,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(call, &default_workflow()).await;
         insta::assert_snapshot!(result);
     }
 
@@ -254,7 +300,15 @@ mod test {
             executable: Box::new(SlowTool),
         };
 
-        let service = ForgeToolService::from_iter(vec![slow_tool]);
+        let service = ForgeToolService {
+            tools: Arc::new(
+                vec![slow_tool]
+                    .into_iter()
+                    .map(|tool| (tool.definition.name.clone(), tool))
+                    .collect(),
+            ),
+            mcp_service: Arc::new(MockMcpTool),
+        };
         let call = ToolCallFull {
             name: ToolName::new("slow_tool"),
             arguments: json!("test input"),
@@ -264,7 +318,7 @@ mod test {
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(call).await;
+        let result = service.call(call, &default_workflow()).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;
@@ -274,4 +328,4 @@ mod test {
         );
         assert!(result.is_error, "Expected error result for timeout");
     }
-}*/
+}

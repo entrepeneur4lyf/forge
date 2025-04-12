@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use forge_domain::{AgentMessage, ChatRequest, ChatResponse, ConversationService, Orchestrator, Services, Workflow};
+use forge_domain::{
+    AgentMessage, ChatRequest, ChatResponse, ConversationService, Orchestrator, Services, Workflow,
+};
 use forge_stream::MpscStream;
 use tracing::error;
 

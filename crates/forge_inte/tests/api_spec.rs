@@ -34,7 +34,7 @@ impl Fixture {
     /// Get the API service, panicking if not validated
     fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
-        ForgeAPI::init(true, None)
+        ForgeAPI::init(true)
     }
 
     /// Get model response as text
@@ -48,7 +48,7 @@ impl Fixture {
         });
 
         // initialize the conversation by storing the workflow.
-        let conversation_id = api.init(workflow).await.unwrap();
+        let conversation_id = api.init(workflow.clone()).await.unwrap();
         let request = ChatRequest::new(
             Event::new(
                 "user_task_init",
@@ -57,7 +57,7 @@ impl Fixture {
             conversation_id,
         );
 
-        api.chat(request)
+        api.chat(request, workflow)
             .await
             .with_context(|| "Failed to initialize chat")
             .unwrap()

@@ -28,7 +28,10 @@ pub struct ForgeServices<F> {
 
 impl<F: Infrastructure> ForgeServices<F> {
     pub fn new(infra: Arc<F>) -> Self {
-        let tool_service = Arc::new(ForgeToolService::new(infra.clone(), Arc::new(ForgeMcp::new())));
+        let tool_service = Arc::new(ForgeToolService::new(
+            infra.clone(),
+            Arc::new(ForgeMcp::new()),
+        ));
         Self {
             infra: infra.clone(),
             provider_service: ForgeProviderService::new(infra.clone()),

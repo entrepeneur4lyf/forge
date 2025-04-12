@@ -55,3 +55,57 @@ impl ToolName {
 pub trait NamedTool {
     fn tool_name() -> ToolName;
 }
+
+#[cfg(test)]
+mod tess {
+    use crate::ToolName;
+
+    #[test]
+    fn test_prefixed_basic() {
+        let name = ToolName::prefixed("my_prefix", "tool");
+        assert!(name.as_str().starts_with("my_prefix-forgestrip-tool"));
+        assert_eq!(name.strip_prefix(), "tool");
+    }
+
+    #[test]
+    fn test_prefixed_filters_invalid_chars() {
+        let name = ToolName::prefixed("!@#bad$$prefix", "some*tool");
+        assert!(name.as_str().contains("badprefix-forgestrip-sometool"));
+    }
+
+    #[test]
+    fn test_prefixed_truncates_long_name() {
+        let long_prefix = "verylongprefixnameexceedingtencharacters";
+        let name = ToolName::prefixed(long_prefix, "supertool");
+        assert!(name.as_str().len() <= 64);
+        assert!(name.as_str().contains("supertool"));
+    }
+
+    #[test]
+    fn test_strip_prefix_exists() {
+        let name = ToolName::new("abc-forgestrip-mytool");
+        assert_eq!(name.strip_prefix(), "mytool");
+    }
+
+    #[test]
+    fn test_strip_prefix_absent() {
+        let name = ToolName::new("mytool");
+        assert_eq!(name.strip_prefix(), "mytool");
+    }
+
+    #[test]
+    fn test_into_string() {
+        let name = ToolName::new("converted_tool");
+        let string = name.clone().into_string();
+        assert_eq!(string, "converted_tool");
+    }
+
+    #[test]
+    fn test_serialization() {
+        let tool = ToolName::new("serialize_tool");
+        let json = serde_json::to_string(&tool).unwrap();
+        assert_eq!(json, "\"serialize_tool\"");
+        let deserialized: ToolName = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, tool);
+    }
+}

@@ -80,7 +80,7 @@ pub struct McpServerConfig {
     /// Environment variables to pass to the command
     #[merge(strategy = crate::merge::option)]
     pub env: Option<HashMap<String, String>>,
-    
+
     /// Url of the MCP server
     #[merge(strategy = crate::merge::option)]
     pub url: Option<String>,
