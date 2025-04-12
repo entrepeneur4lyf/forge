@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{McpService, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Workflow};
+use forge_domain::{
+    McpService, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    ToolService, Workflow,
+};
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
@@ -32,7 +35,12 @@ impl ForgeToolService {
 
 #[async_trait::async_trait]
 impl ToolService for ForgeToolService {
-    async fn call(&self, context: ToolCallContext, call: ToolCallFull, workflow: Option<Workflow>) -> ToolResult {
+    async fn call(
+        &self,
+        context: ToolCallContext,
+        call: ToolCallFull,
+        workflow: Option<Workflow>,
+    ) -> ToolResult {
         let name = call.name.clone();
         if !self
             .tools
@@ -52,9 +60,9 @@ impl ToolService for ForgeToolService {
                             Ok(val) => ans.success(val),
                             Err(_) => {
                                 error!(
-                                error = "Failed to serialize tool result",
-                                "Tool call failed"
-                            );
+                                    error = "Failed to serialize tool result",
+                                    "Tool call failed"
+                                );
                                 ans.failure(anyhow::anyhow!("Failed to serialize tool result"))
                             }
                         }

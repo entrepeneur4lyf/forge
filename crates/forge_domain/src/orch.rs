@@ -286,7 +286,7 @@ impl<A: Services> Orchestrator<A> {
                         .sender(self.sender.clone())
                         .agent_id(agent.id.clone()),
                     tool_call.clone(),
-                    Some(workflow.clone())
+                    Some(workflow.clone()),
                 )
                 .await)
         }
