@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{
-    McpService, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Workflow,
-};
+use forge_domain::{McpService, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Workflow};
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
@@ -34,7 +32,7 @@ impl ForgeToolService {
 
 #[async_trait::async_trait]
 impl ToolService for ForgeToolService {
-    async fn call(&self, call: ToolCallFull, workflow: &Workflow) -> ToolResult {
+    async fn call(&self, context: ToolCallContext, call: ToolCallFull, workflow: &Workflow) -> ToolResult {
         if !self
             .tools
             .values()
@@ -77,7 +75,7 @@ impl ToolService for ForgeToolService {
         let output = match self.tools.get(&name) {
             Some(tool) => {
                 // Wrap tool call with timeout
-                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input)).await {
+                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(context, input)).await {
                     Ok(result) => result,
                     Err(_) => Err(anyhow::anyhow!(
                         "Tool '{}' timed out after {} minutes",
@@ -142,7 +140,7 @@ impl ToolService for ForgeToolService {
 #[cfg(test)]
 mod test {
     use anyhow::bail;
-    use forge_domain::{Tool, ToolCallId, ToolDefinition};
+    use forge_domain::{Tool, ToolCallContext, ToolCallId, ToolDefinition};
     use rmcp::model::{CallToolResult, Content};
     use serde_json::{json, Value};
     use tokio::time;
@@ -177,7 +175,11 @@ mod test {
     impl forge_domain::ExecutableTool for SuccessTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+        async fn call(
+            &self,
+            _context: ToolCallContext,
+            input: Self::Input,
+        ) -> anyhow::Result<String> {
             Ok(format!("Success with input: {}", input))
         }
     }
@@ -189,7 +191,11 @@ mod test {
     impl forge_domain::ExecutableTool for FailureTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> anyhow::Result<String> {
+        async fn call(
+            &self,
+            _context: ToolCallContext,
+            _input: Self::Input,
+        ) -> anyhow::Result<String> {
             bail!("Tool call failed with simulated failure".to_string())
         }
     }
@@ -244,7 +250,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
         insta::assert_snapshot!(result);
     }
 
@@ -257,7 +263,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
         insta::assert_snapshot!(result);
     }
 
@@ -270,7 +276,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
         insta::assert_snapshot!(result);
     }
 
@@ -281,7 +287,11 @@ mod test {
     impl forge_domain::ExecutableTool for SlowTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> anyhow::Result<String> {
+        async fn call(
+            &self,
+            _context: ToolCallContext,
+            _input: Self::Input,
+        ) -> anyhow::Result<String> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(400)).await;
             Ok("Slow tool completed".to_string())
@@ -320,7 +330,7 @@ mod test {
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;

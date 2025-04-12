@@ -24,6 +24,12 @@ pub struct AgentMessage<T> {
     pub message: T,
 }
 
+impl<T> AgentMessage<T> {
+    pub fn new(agent: AgentId, message: T) -> Self {
+        Self { agent, message }
+    }
+}
+
 #[derive(Clone)]
 pub struct Orchestrator<App> {
     services: Arc<App>,
@@ -90,7 +96,7 @@ impl<A: Services> Orchestrator<A> {
         if let Some(sender) = &self.sender {
             // Send message if it's a Custom type or if hide_content is false
             let show_text = !agent.hide_content.unwrap_or_default();
-            let can_send = !matches!(&message, ChatResponse::Text(_)) || show_text;
+            let can_send = !matches!(&message, ChatResponse::Text { .. }) || show_text;
             if can_send {
                 sender
                     .send(Ok(AgentMessage { agent: agent.id.clone(), message }))
@@ -180,8 +186,11 @@ impl<A: Services> Orchestrator<A> {
             let message = message?;
             messages.push(message.clone());
             if let Some(content) = message.content {
-                self.send(agent, ChatResponse::Text(content.as_str().to_string()))
-                    .await?;
+                self.send(
+                    agent,
+                    ChatResponse::Text { text: content.as_str().to_string(), is_complete: false },
+                )
+                .await?;
             }
 
             if let Some(usage) = message.usage {
@@ -272,7 +281,12 @@ impl<A: Services> Orchestrator<A> {
             Ok(self
                 .services
                 .tool_service()
-                .call(tool_call.clone(), workflow)
+                .call(
+                    ToolCallContext::default()
+                        .sender(self.sender.clone())
+                        .agent_id(agent.id.clone()),
+                    tool_call.clone(),
+                )
                 .await)
         }
     }
