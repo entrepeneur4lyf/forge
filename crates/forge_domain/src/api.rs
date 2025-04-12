@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use forge_stream::MpscStream;
 use serde_json::Value;
 
@@ -11,7 +13,7 @@ pub trait API: Sync + Send {
 
     /// Provides information about the tools available in the current
     /// environment
-    async fn tools(&self) -> Vec<ToolDefinition>;
+    async fn tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
 
     /// Provides a list of models available in the current environment
     async fn models(&self) -> anyhow::Result<Vec<Model>>;
@@ -20,6 +22,7 @@ pub trait API: Sync + Send {
     async fn chat(
         &self,
         chat: ChatRequest,
+        workflow: Workflow,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>, anyhow::Error>>>;
 
     /// Returns the current environment
@@ -37,7 +40,7 @@ pub trait API: Sync + Send {
     /// Loads a workflow configuration from the given path, current directory's
     /// forge.yaml, or embedded default configuration in that order of
     /// precedence
-    async fn load(&self) -> anyhow::Result<Workflow>;
+    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
 
     /// Returns the conversation with the given ID
     async fn conversation(

@@ -48,8 +48,8 @@ pub trait ProviderService: Send + Sync + 'static {
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
     // TODO: should take `call` by reference
-    async fn call(&self, call: ToolCallFull) -> ToolResult;
-    fn list(&self) -> Vec<ToolDefinition>;
+    async fn call(&self, call: ToolCallFull, workflow: &Workflow) -> ToolResult;
+    async fn list(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
     fn usage_prompt(&self) -> String;
 }
 
@@ -131,16 +131,10 @@ pub trait LoaderService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait McpService: Send + Sync {
-    async fn init_mcp(&self) -> anyhow::Result<()>;
-
-    /// List tools
-    async fn list_tools(&self) -> anyhow::Result<Vec<ToolDefinition>>;
-
-    /// Stop all MCP servers
-    async fn stop_all_servers(&self) -> anyhow::Result<()>;
+    async fn list_tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
 
     /// Call tool
-    async fn call_tool(&self, tool_name: &str, arguments: Value) -> anyhow::Result<CallToolResult>;
+    async fn call_tool(&self, tool_name: &str, arguments: Value, workflow: &Workflow) -> anyhow::Result<CallToolResult>;
 }
 
 /// Core app trait providing access to services and repositories.
@@ -153,8 +147,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     type TemplateService: TemplateService;
     type AttachmentService: AttachmentService;
     type EnvironmentService: EnvironmentService;
-    type LoaderService: LoaderService;
-    type McpService: McpService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
@@ -162,6 +154,4 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn template_service(&self) -> &Self::TemplateService;
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
-    fn loader_service(&self) -> &Self::LoaderService;
-    fn mcp_service(&self) -> &Self::McpService;
 }

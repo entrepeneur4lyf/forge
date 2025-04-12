@@ -2,7 +2,6 @@ mod attachment;
 mod conversation;
 mod forge_services;
 mod infra;
-mod loader;
 mod mcp;
 mod provider;
 mod template;

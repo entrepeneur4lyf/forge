@@ -61,28 +61,16 @@ pub struct Workflow {
 
     /// Model Context Protocol (MCP) configuration
     #[merge(strategy = crate::merge::option)]
-    pub mcp: Option<McpConfig>,
+    #[serde(rename = "mcpServers")]
+    pub mcp: Option<HashMap<String, McpServerConfig>>,
 }
 
-/// MCP client configuration
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
-#[serde(rename_all = "camelCase")]
-#[setters(strip_option)]
-pub struct McpConfig {
-    /// MCP HTTP servers
-    #[merge(strategy = crate::merge::option)]
-    pub http: Option<HashMap<String, McpHttpServerConfig>>,
-
-    /// MCP servers
-    #[merge(strategy = crate::merge::option)]
-    pub fs: Option<HashMap<String, McpFsServerConfig>>,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
-pub struct McpFsServerConfig {
+#[setters(strip_option, into)]
+pub struct McpServerConfig {
     /// Command to execute for starting this MCP server
-    #[merge(strategy = crate::merge::std::overwrite)]
-    pub command: String,
+    #[merge(strategy = crate::merge::option)]
+    pub command: Option<String>,
 
     /// Arguments to pass to the command
     #[merge(strategy = crate::merge::vec::append)]
@@ -92,13 +80,10 @@ pub struct McpFsServerConfig {
     /// Environment variables to pass to the command
     #[merge(strategy = crate::merge::option)]
     pub env: Option<HashMap<String, String>>,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
-pub struct McpHttpServerConfig {
+    
     /// Url of the MCP server
-    #[merge(strategy = crate::merge::std::overwrite)]
-    pub url: String,
+    #[merge(strategy = crate::merge::option)]
+    pub url: Option<String>,
 }
 
 impl Default for Workflow {
