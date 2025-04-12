@@ -32,37 +32,40 @@ impl ForgeToolService {
 
 #[async_trait::async_trait]
 impl ToolService for ForgeToolService {
-    async fn call(&self, context: ToolCallContext, call: ToolCallFull, workflow: &Workflow) -> ToolResult {
+    async fn call(&self, context: ToolCallContext, call: ToolCallFull, workflow: Option<Workflow>) -> ToolResult {
+        let name = call.name.clone();
         if !self
             .tools
             .values()
             .any(|v| v.definition.name.eq(&call.name))
         {
-            return match self
-                .mcp_service
-                .call_tool(call.name.as_str(), call.arguments.clone(), workflow)
-                .await
-            {
-                Ok(result) => {
-                    let ans = ToolResult::from(call);
-                    match serde_json::to_string(&result.content) {
-                        Ok(val) => ans.success(val),
-                        Err(_) => {
-                            error!(
+            if let Some(workflow) = workflow {
+                debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
+                return match self
+                    .mcp_service
+                    .call_tool(call.name.as_str(), call.arguments.clone(), &workflow)
+                    .await
+                {
+                    Ok(result) => {
+                        let ans = ToolResult::from(call);
+                        match serde_json::to_string(&result.content) {
+                            Ok(val) => ans.success(val),
+                            Err(_) => {
+                                error!(
                                 error = "Failed to serialize tool result",
                                 "Tool call failed"
                             );
-                            ans.failure(anyhow::anyhow!("Failed to serialize tool result"))
+                                ans.failure(anyhow::anyhow!("Failed to serialize tool result"))
+                            }
                         }
                     }
-                }
-                Err(err) => {
-                    error!(error = ?err, "Tool call failed");
-                    ToolResult::from(call).failure(err)
-                }
-            };
+                    Err(err) => {
+                        error!(error = ?err, "Tool call failed");
+                        ToolResult::from(call).failure(err)
+                    }
+                };
+            }
         }
-        let name = call.name.clone();
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
         let mut available_tools = self
@@ -228,19 +231,6 @@ mod test {
         ForgeToolService { tools: Arc::new(tools), mcp_service: Arc::new(MockMcpTool) }
     }
 
-    fn default_workflow() -> Workflow {
-        Workflow {
-            agents: vec![],
-            variables: Default::default(),
-            commands: vec![],
-            model: None,
-            max_walker_depth: None,
-            custom_rules: None,
-            temperature: None,
-            mcp: None,
-        }
-    }
-
     #[tokio::test]
     async fn test_successful_tool_call() {
         let service = new_tool_service();
@@ -250,7 +240,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, None).await;
         insta::assert_snapshot!(result);
     }
 
@@ -263,7 +253,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, None).await;
         insta::assert_snapshot!(result);
     }
 
@@ -276,7 +266,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, None).await;
         insta::assert_snapshot!(result);
     }
 
@@ -330,7 +320,7 @@ mod test {
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(ToolCallContext::default(), call, &default_workflow()).await;
+        let result = service.call(ToolCallContext::default(), call, None).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;
