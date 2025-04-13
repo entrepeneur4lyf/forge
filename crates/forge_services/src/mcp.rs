@@ -154,8 +154,8 @@ impl ForgeMcp {
                 )
                 .await;
 
-                for i in http_results {
-                    if let Some(Err(e)) = i {
+                for i in http_results.into_iter().flatten() {
+                    if let Err(e) = i {
                         tracing::error!("Failed to start server: {e}");
                     }
                 }
