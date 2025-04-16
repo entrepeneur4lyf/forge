@@ -24,11 +24,11 @@ struct ServerHolder {
 /// Currently just a placeholder structure, to be implemented
 /// when we add actual server functionality.
 #[derive(Clone)]
-pub struct ForgeMcp {
+pub struct ForgeMcpService {
     servers: Arc<Mutex<HashMap<ToolName, ServerHolder>>>,
 }
 
-impl ForgeMcp {
+impl ForgeMcpService {
     pub fn new() -> Self {
         Self { servers: Arc::new(Mutex::new(HashMap::new())) }
     }
@@ -69,7 +69,7 @@ impl ForgeMcp {
         Ok(())
     }
 
-    async fn start_fs_server(
+    async fn connect_stdio_server(
         &self,
         server_name: &str,
         config: McpServerConfig,
@@ -99,7 +99,7 @@ impl ForgeMcp {
 
         Ok(())
     }
-    async fn start_http_server(
+    async fn connect_http_server(
         &self,
         server_name: &str,
         config: McpServerConfig,
@@ -144,9 +144,9 @@ impl ForgeMcp {
                             {
                                 None
                             } else if server.url.is_some() {
-                                Some(self.start_http_server(server_name, server.clone()).await)
+                                Some(self.connect_http_server(server_name, server.clone()).await)
                             } else {
-                                Some(self.start_fs_server(server_name, server.clone()).await)
+                                Some(self.connect_stdio_server(server_name, server.clone()).await)
                             }
                         })
                         // TODO: use flatten function provided by FuturesExt
@@ -166,7 +166,7 @@ impl ForgeMcp {
 }
 
 #[async_trait::async_trait]
-impl McpService for ForgeMcp {
+impl McpService for ForgeMcpService {
     async fn list_tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
         self.init_mcp(workflow)
             .await
@@ -217,7 +217,7 @@ mod tests {
     use tokio::sync::Mutex;
     use tokio_util::sync::CancellationToken;
 
-    use crate::mcp::ForgeMcp;
+    use crate::mcp::ForgeMcpService;
 
     struct MockLoaderService {
         workflow: Workflow,
@@ -283,7 +283,7 @@ mod tests {
         let loader = MockLoaderService::from_http(map);
         let workflow = loader.load().await.unwrap();
 
-        let mcp = ForgeMcp::new();
+        let mcp = ForgeMcpService::new();
         let tools = mcp.list_tools(&workflow).await.unwrap();
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name.strip_prefix(), "increment");

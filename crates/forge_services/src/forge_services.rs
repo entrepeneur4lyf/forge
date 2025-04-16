@@ -4,7 +4,7 @@ use forge_domain::Services;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
-use crate::mcp::ForgeMcp;
+use crate::mcp::ForgeMcpService;
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
@@ -30,7 +30,7 @@ impl<F: Infrastructure> ForgeServices<F> {
     pub fn new(infra: Arc<F>) -> Self {
         let tool_service = Arc::new(ForgeToolService::new(
             infra.clone(),
-            Arc::new(ForgeMcp::new()),
+            Arc::new(ForgeMcpService::new()),
         ));
         Self {
             infra: infra.clone(),
