@@ -210,7 +210,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use forge_domain::{LoaderService, McpServerConfig, McpService, Workflow};
+    use forge_domain::{McpServerConfig, McpService, Workflow};
     use rmcp::model::{CallToolResult, Content};
     use rmcp::transport::SseServer;
     use rmcp::{tool, ServerHandler};
@@ -231,8 +231,7 @@ mod tests {
         }
     }
 
-    #[async_trait::async_trait]
-    impl LoaderService for MockLoaderService {
+    impl MockLoaderService {
         async fn load(&self) -> anyhow::Result<Workflow> {
             Ok(self.workflow.clone())
         }

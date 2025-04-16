@@ -121,20 +121,6 @@ pub trait EnvironmentService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait LoaderService: Send + Sync {
-    /// Loads the workflow from the given path.
-    /// If a path is provided, uses that workflow directly without merging.
-    /// If no path is provided:
-    ///   - Loads from current directory's forge.yaml merged with defaults (if
-    ///     forge.yaml exists)
-    ///   - Falls back to embedded default if forge.yaml doesn't exist
-    ///
-    /// When merging, the project's forge.yaml values take precedence over
-    /// defaults.
-    async fn load(&self) -> anyhow::Result<Workflow>;
-}
-
-#[async_trait::async_trait]
 pub trait McpService: Send + Sync {
     async fn list_tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
 
