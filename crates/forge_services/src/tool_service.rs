@@ -45,7 +45,9 @@ impl<M: ToolService + 'static> ToolService for ForgeToolService<M> {
         if !self
             .tools
             .values()
-            .any(|v| v.definition.name.eq(&call.name)) && !mcp.is_empty() {
+            .any(|v| v.definition.name.eq(&call.name))
+            && !mcp.is_empty()
+        {
             debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
             return self.mcp_service.call(context, call, mcp).await;
         }
