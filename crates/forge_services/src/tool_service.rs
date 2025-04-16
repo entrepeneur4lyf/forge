@@ -15,12 +15,12 @@ use crate::Infrastructure;
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone)]
-pub struct ForgeToolService<M: McpService + ?Sized = dyn McpService> {
+pub struct ForgeToolService<M: ToolService + ?Sized = dyn ToolService> {
     tools: Arc<HashMap<ToolName, Tool>>,
     mcp_service: Arc<M>,
 }
 
-impl<M: McpService + 'static> ForgeToolService<M> {
+impl<M: ToolService + 'static> ForgeToolService<M> {
     pub fn new<F: Infrastructure>(infra: Arc<F>, mcp: Arc<M>) -> Self {
         let registry = ToolRegistry::new(infra.clone());
         let tools: HashMap<ToolName, Tool> = registry
@@ -34,7 +34,7 @@ impl<M: McpService + 'static> ForgeToolService<M> {
 }
 
 #[async_trait::async_trait]
-impl<M: McpService + 'static> ToolService for ForgeToolService<M> {
+impl<M: ToolService + 'static> ToolService for ForgeToolService<M> {
     async fn call(
         &self,
         context: ToolCallContext,
