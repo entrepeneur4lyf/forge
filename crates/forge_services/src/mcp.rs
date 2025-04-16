@@ -28,6 +28,12 @@ pub struct ForgeMcpService {
     servers: Arc<Mutex<HashMap<ToolName, ServerHolder>>>,
 }
 
+impl Default for ForgeMcpService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForgeMcpService {
     pub fn new() -> Self {
         Self { servers: Arc::new(Mutex::new(HashMap::new())) }

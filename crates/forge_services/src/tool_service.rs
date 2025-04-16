@@ -15,13 +15,13 @@ use crate::Infrastructure;
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone)]
-pub struct ForgeToolService {
+pub struct ForgeToolService<M: McpService + ?Sized = dyn McpService> {
     tools: Arc<HashMap<ToolName, Tool>>,
-    mcp_service: Arc<dyn McpService>,
+    mcp_service: Arc<M>,
 }
 
-impl ForgeToolService {
-    pub fn new<F: Infrastructure>(infra: Arc<F>, mcp: Arc<dyn McpService>) -> Self {
+impl<M: McpService + 'static> ForgeToolService<M> {
+    pub fn new<F: Infrastructure>(infra: Arc<F>, mcp: Arc<M>) -> Self {
         let registry = ToolRegistry::new(infra.clone());
         let tools: HashMap<ToolName, Tool> = registry
             .tools()
@@ -34,7 +34,7 @@ impl ForgeToolService {
 }
 
 #[async_trait::async_trait]
-impl ToolService for ForgeToolService {
+impl<M: McpService + 'static> ToolService for ForgeToolService<M> {
     async fn call(
         &self,
         context: ToolCallContext,
@@ -236,7 +236,10 @@ mod test {
             .map(|tool| (tool.definition.name.clone(), tool))
             .collect::<HashMap<_, _>>();
 
-        ForgeToolService { tools: Arc::new(tools), mcp_service: Arc::new(MockMcpTool) }
+        ForgeToolService::<MockMcpTool> {
+            tools: Arc::new(tools),
+            mcp_service: Arc::new(MockMcpTool),
+        }
     }
 
     #[tokio::test]
@@ -310,7 +313,7 @@ mod test {
             executable: Box::new(SlowTool),
         };
 
-        let service = ForgeToolService {
+        let service = ForgeToolService::<MockMcpTool> {
             tools: Arc::new(
                 vec![slow_tool]
                     .into_iter()

@@ -19,19 +19,17 @@ use crate::Infrastructure;
 #[derive(Clone)]
 pub struct ForgeServices<F> {
     infra: Arc<F>,
-    tool_service: Arc<ForgeToolService>,
+    tool_service: Arc<ForgeToolService<ForgeMcpService>>,
     provider_service: ForgeProviderService,
     conversation_service: ForgeConversationService,
-    prompt_service: ForgeTemplateService<F, ForgeToolService>,
+    prompt_service: ForgeTemplateService<F, ForgeToolService<ForgeMcpService>>,
     attachment_service: ForgeChatRequest<F>,
 }
 
 impl<F: Infrastructure> ForgeServices<F> {
     pub fn new(infra: Arc<F>) -> Self {
-        let tool_service = Arc::new(ForgeToolService::new(
-            infra.clone(),
-            Arc::new(ForgeMcpService::new()),
-        ));
+        let mcp_service = Arc::new(ForgeMcpService::new());
+        let tool_service = Arc::new(ForgeToolService::new(infra.clone(), mcp_service));
         Self {
             infra: infra.clone(),
             provider_service: ForgeProviderService::new(infra.clone()),
@@ -44,10 +42,10 @@ impl<F: Infrastructure> ForgeServices<F> {
 }
 
 impl<F: Infrastructure> Services for ForgeServices<F> {
-    type ToolService = ForgeToolService;
+    type ToolService = ForgeToolService<ForgeMcpService>;
     type ProviderService = ForgeProviderService;
     type ConversationService = ForgeConversationService;
-    type TemplateService = ForgeTemplateService<F, ForgeToolService>;
+    type TemplateService = ForgeTemplateService<F, ForgeToolService<ForgeMcpService>>;
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
 
