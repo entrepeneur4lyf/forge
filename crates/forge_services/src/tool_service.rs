@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    McpService, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult,
-    ToolService, Workflow,
+    Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+    Workflow,
 };
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
@@ -40,7 +40,7 @@ impl<M: McpService + 'static> ToolService for ForgeToolService<M> {
         context: ToolCallContext,
         call: ToolCallFull,
         workflow: Option<Workflow>,
-    ) -> ToolResult {
+    ) -> anyhow::Result<ToolResult> {
         let name = call.name.clone();
         if !self
             .tools
@@ -49,29 +49,7 @@ impl<M: McpService + 'static> ToolService for ForgeToolService<M> {
         {
             if let Some(workflow) = workflow {
                 debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
-                return match self
-                    .mcp_service
-                    .call_tool(call.name.as_str(), call.arguments.clone(), &workflow)
-                    .await
-                {
-                    Ok(result) => {
-                        let ans = ToolResult::from(call);
-                        match serde_json::to_string(&result.content) {
-                            Ok(val) => ans.success(val),
-                            Err(_) => {
-                                error!(
-                                    error = "Failed to serialize tool result",
-                                    "Tool call failed"
-                                );
-                                ans.failure(anyhow::anyhow!("Failed to serialize tool result"))
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        error!(error = ?err, "Tool call failed");
-                        ToolResult::from(call).failure(err)
-                    }
-                };
+                return self.mcp_service.call(context, call, Some(workflow)).await;
             }
         }
         let input = call.arguments.clone();
@@ -111,7 +89,7 @@ impl<M: McpService + 'static> ToolService for ForgeToolService<M> {
         };
 
         debug!(result = ?result, "Tool call result");
-        result
+        Ok(result)
     }
 
     async fn list(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
@@ -123,10 +101,8 @@ impl<M: McpService + 'static> ToolService for ForgeToolService<M> {
 
         // Sorting is required to ensure system prompts are exactly the same
         tools.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
-        if let Some(workflow) = workflow {
-            let mcp_tools = self.mcp_service.list_tools(&workflow).await?;
-            tools.extend(mcp_tools);
-        }
+        let mcp_tools = self.mcp_service.list(workflow).await?;
+        tools.extend(mcp_tools);
 
         Ok(tools)
     }
@@ -152,7 +128,6 @@ impl<M: McpService + 'static> ToolService for ForgeToolService<M> {
 mod test {
     use anyhow::bail;
     use forge_domain::{Tool, ToolCallContext, ToolCallId, ToolDefinition};
-    use rmcp::model::{CallToolResult, Content};
     use serde_json::{json, Value};
     use tokio::time;
 
@@ -161,21 +136,26 @@ mod test {
     struct MockMcpTool;
 
     #[async_trait::async_trait]
-    impl McpService for MockMcpTool {
-        async fn list_tools(&self, _: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
+    impl ToolService for MockMcpTool {
+        async fn call(
+            &self,
+            _: ToolCallContext,
+            call: ToolCallFull,
+            _: Option<Workflow>,
+        ) -> anyhow::Result<ToolResult> {
+            Ok(ToolResult {
+                name: call.name,
+                call_id: None,
+                content: "No tool found".to_string(),
+                is_error: true,
+            })
+        }
+        async fn list(&self, _: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
             Ok(vec![])
         }
 
-        async fn call_tool(
-            &self,
-            _: &str,
-            _: Value,
-            _: &Workflow,
-        ) -> anyhow::Result<CallToolResult> {
-            Ok(CallToolResult {
-                content: vec![Content::text("No tool found")],
-                is_error: Some(true),
-            })
+        fn usage_prompt(&self) -> String {
+            todo!()
         }
     }
 
@@ -251,7 +231,10 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::default(), call, None).await;
+        let result = service
+            .call(ToolCallContext::default(), call, None)
+            .await
+            .unwrap();
         insta::assert_snapshot!(result);
     }
 
@@ -264,7 +247,10 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::default(), call, None).await;
+        let result = service
+            .call(ToolCallContext::default(), call, None)
+            .await
+            .unwrap();
         insta::assert_snapshot!(result);
     }
 
@@ -277,7 +263,10 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::default(), call, None).await;
+        let result = service
+            .call(ToolCallContext::default(), call, None)
+            .await
+            .unwrap();
         insta::assert_snapshot!(result);
     }
 
@@ -331,7 +320,10 @@ mod test {
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(ToolCallContext::default(), call, None).await;
+        let result = service
+            .call(ToolCallContext::default(), call, None)
+            .await
+            .unwrap();
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;

@@ -53,7 +53,7 @@ pub trait ToolService: Send + Sync {
         context: ToolCallContext,
         call: ToolCallFull,
         workflow: Option<Workflow>,
-    ) -> ToolResult;
+    ) -> anyhow::Result<ToolResult>;
     async fn list(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>>;
     fn usage_prompt(&self) -> String;
 }
@@ -118,19 +118,6 @@ pub trait AttachmentService {
 
 pub trait EnvironmentService: Send + Sync {
     fn get_environment(&self) -> Environment;
-}
-
-#[async_trait::async_trait]
-pub trait McpService: Send + Sync {
-    async fn list_tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>>;
-
-    /// Call tool
-    async fn call_tool(
-        &self,
-        tool_name: &str,
-        arguments: Value,
-        workflow: &Workflow,
-    ) -> anyhow::Result<CallToolResult>;
 }
 
 /// Core app trait providing access to services and repositories.

@@ -2,16 +2,15 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use anyhow::Context;
 use forge_domain::{
-    McpServerConfig, McpService, RunnableService, ToolDefinition, ToolName, Workflow, VERSION,
+    McpServerConfig, RunnableService, ToolCallContext, ToolCallFull, ToolDefinition, ToolName,
+    ToolResult, ToolService, Workflow, VERSION,
 };
 use futures::FutureExt;
-use rmcp::model::{
-    CallToolRequestParam, CallToolResult, ClientInfo, Implementation, ListToolsResult,
-};
+use rmcp::model::{CallToolRequestParam, ClientInfo, Implementation, ListToolsResult};
 use rmcp::transport::TokioChildProcess;
 use rmcp::ServiceExt;
-use serde_json::Value;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
@@ -172,42 +171,57 @@ impl ForgeMcpService {
 }
 
 #[async_trait::async_trait]
-impl McpService for ForgeMcpService {
-    async fn list_tools(&self, workflow: &Workflow) -> anyhow::Result<Vec<ToolDefinition>> {
-        self.init_mcp(workflow)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to init mcp: {e}"))?;
-        self.servers
-            .lock()
-            .await
-            .iter()
-            .map(|(_, server)| Ok(server.tool_definition.clone()))
-            .collect()
+impl ToolService for ForgeMcpService {
+    async fn list(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
+        if let Some(workflow) = workflow {
+            self.init_mcp(&workflow)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to init mcp: {e}"))?;
+            self.servers
+                .lock()
+                .await
+                .iter()
+                .map(|(_, server)| Ok(server.tool_definition.clone()))
+                .collect()
+        } else {
+            Ok(vec![])
+        }
     }
-
-    async fn call_tool(
+    async fn call(
         &self,
-        tool_name: &str,
-        arguments: Value,
-        workflow: &Workflow,
-    ) -> anyhow::Result<CallToolResult> {
-        self.init_mcp(workflow)
+        _: ToolCallContext,
+        call: ToolCallFull,
+        workflow: Option<Workflow>,
+    ) -> anyhow::Result<ToolResult> {
+        let workflow = workflow.context("Workflow not found")?;
+        self.init_mcp(&workflow)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to init mcp: {e}"))?;
 
-        let tool_name = ToolName::new(tool_name);
+        let tool_name = ToolName::new(call.name);
         let servers = self.servers.lock().await;
         if let Some(server) = servers.get(&tool_name) {
-            Ok(server
+            let result = server
                 .client
                 .call_tool(CallToolRequestParam {
                     name: Cow::Owned(tool_name.strip_prefix()),
-                    arguments: arguments.as_object().cloned(),
+                    arguments: call.arguments.as_object().cloned(),
                 })
-                .await?)
+                .await?;
+
+            Ok(ToolResult {
+                name: tool_name,
+                call_id: call.call_id.clone(),
+                content: serde_json::to_string(&result.content)?,
+                is_error: result.is_error.unwrap_or_default(),
+            })
         } else {
             Err(anyhow::anyhow!("Server not found"))
         }
+    }
+
+    fn usage_prompt(&self) -> String {
+        todo!()
     }
 }
 
@@ -216,7 +230,9 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use forge_domain::{McpServerConfig, McpService, Workflow};
+    use forge_domain::{
+        McpServerConfig, ToolCallContext, ToolCallFull, ToolName, ToolService, Workflow,
+    };
     use rmcp::model::{CallToolResult, Content};
     use rmcp::transport::SseServer;
     use rmcp::{tool, ServerHandler};
@@ -289,28 +305,39 @@ mod tests {
         let workflow = loader.load().await.unwrap();
 
         let mcp = ForgeMcpService::new();
-        let tools = mcp.list_tools(&workflow).await.unwrap();
+        let tools = mcp.list(Some(workflow.clone())).await.unwrap();
         assert_eq!(tools.len(), 1);
         assert_eq!(tools[0].name.strip_prefix(), "increment");
 
         let one = mcp
-            .call_tool(
-                "test-forgestrip-increment",
-                serde_json::json!({}),
-                &workflow,
+            .call(
+                ToolCallContext::default(),
+                ToolCallFull {
+                    name: ToolName::new("test-forgestrip-increment"),
+                    call_id: None,
+                    arguments: serde_json::json!({}),
+                },
+                Some(workflow.clone()),
             )
             .await
             .unwrap();
-        assert_eq!(one.content[0].as_text().unwrap().text, "1");
+        let content = serde_json::from_str::<Vec<Content>>(&one.content).unwrap();
+        assert_eq!(content[0].as_text().unwrap().text, "1");
         let two = mcp
-            .call_tool(
-                "test-forgestrip-increment",
-                serde_json::json!({}),
-                &workflow,
+            .call(
+                ToolCallContext::default(),
+                ToolCallFull {
+                    name: ToolName::new("test-forgestrip-increment"),
+                    call_id: None,
+                    arguments: serde_json::json!({}),
+                },
+                Some(workflow.clone()),
             )
             .await
             .unwrap();
-        assert_eq!(two.content[0].as_text().unwrap().text, "2");
+        let content = serde_json::from_str::<Vec<Content>>(&two.content).unwrap();
+
+        assert_eq!(content[0].as_text().unwrap().text, "2");
         ct.cancel();
     }
 }

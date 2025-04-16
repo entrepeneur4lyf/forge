@@ -278,8 +278,7 @@ impl<A: Services> Orchestrator<A> {
             self.dispatch_spawned(event, workflow).await?;
             Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
         } else {
-            Ok(self
-                .services
+            self.services
                 .tool_service()
                 .call(
                     ToolCallContext::default()
@@ -288,7 +287,7 @@ impl<A: Services> Orchestrator<A> {
                     tool_call.clone(),
                     Some(workflow.clone()),
                 )
-                .await)
+                .await
         }
     }
 
