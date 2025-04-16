@@ -1,4 +1,4 @@
-use forge_api::{ConversationId, Usage, Workflow};
+use forge_api::{ConversationId, Usage};
 use serde::Deserialize;
 
 use crate::prompt::ForgePrompt;
@@ -28,7 +28,6 @@ impl std::fmt::Display for Mode {
 pub struct UIState {
     pub current_title: Option<String>,
     pub conversation_id: Option<ConversationId>,
-    pub workflow: Option<Workflow>,
     pub usage: Usage,
     pub mode: Mode,
     pub is_first: bool,
@@ -39,7 +38,6 @@ impl UIState {
         Self {
             current_title: Default::default(),
             conversation_id: Default::default(),
-            workflow: Default::default(),
             usage: Default::default(),
             mode,
             is_first: true,

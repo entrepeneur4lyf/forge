@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
-pub struct McpServerConfig {
+pub struct McpConfig {
     /// Command to execute for starting this MCP server
     #[merge(strategy = crate::merge::option)]
     pub command: Option<String>,

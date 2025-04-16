@@ -55,7 +55,6 @@ impl Fixture {
                 "There is a cat hidden in the codebase. What is its name?",
             ),
             conversation_id,
-            workflow,
         );
 
         api.chat(request)

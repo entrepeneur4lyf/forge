@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
-    Workflow,
+    McpConfig, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    ToolService,
 };
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
@@ -39,18 +39,15 @@ impl<M: ToolService + 'static> ToolService for ForgeToolService<M> {
         &self,
         context: ToolCallContext,
         call: ToolCallFull,
-        workflow: Option<Workflow>,
+        mcp: HashMap<String, McpConfig>,
     ) -> anyhow::Result<ToolResult> {
         let name = call.name.clone();
         if !self
             .tools
             .values()
-            .any(|v| v.definition.name.eq(&call.name))
-        {
-            if let Some(workflow) = workflow {
-                debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
-                return self.mcp_service.call(context, call, Some(workflow)).await;
-            }
+            .any(|v| v.definition.name.eq(&call.name)) && !mcp.is_empty() {
+            debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
+            return self.mcp_service.call(context, call, mcp).await;
         }
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
@@ -92,7 +89,7 @@ impl<M: ToolService + 'static> ToolService for ForgeToolService<M> {
         Ok(result)
     }
 
-    async fn list(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
+    async fn list(&self, mcp: HashMap<String, McpConfig>) -> anyhow::Result<Vec<ToolDefinition>> {
         let mut tools: Vec<_> = self
             .tools
             .values()
@@ -101,7 +98,7 @@ impl<M: ToolService + 'static> ToolService for ForgeToolService<M> {
 
         // Sorting is required to ensure system prompts are exactly the same
         tools.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
-        let mcp_tools = self.mcp_service.list(workflow).await?;
+        let mcp_tools = self.mcp_service.list(mcp).await?;
         tools.extend(mcp_tools);
 
         Ok(tools)
@@ -141,7 +138,7 @@ mod test {
             &self,
             _: ToolCallContext,
             call: ToolCallFull,
-            _: Option<Workflow>,
+            _: HashMap<String, McpConfig>,
         ) -> anyhow::Result<ToolResult> {
             Ok(ToolResult {
                 name: call.name,
@@ -150,7 +147,7 @@ mod test {
                 is_error: true,
             })
         }
-        async fn list(&self, _: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
+        async fn list(&self, _: HashMap<String, McpConfig>) -> anyhow::Result<Vec<ToolDefinition>> {
             Ok(vec![])
         }
 
@@ -232,7 +229,7 @@ mod test {
         };
 
         let result = service
-            .call(ToolCallContext::default(), call, None)
+            .call(ToolCallContext::default(), call, Default::default())
             .await
             .unwrap();
         insta::assert_snapshot!(result);
@@ -248,7 +245,7 @@ mod test {
         };
 
         let result = service
-            .call(ToolCallContext::default(), call, None)
+            .call(ToolCallContext::default(), call, Default::default())
             .await
             .unwrap();
         insta::assert_snapshot!(result);
@@ -264,7 +261,7 @@ mod test {
         };
 
         let result = service
-            .call(ToolCallContext::default(), call, None)
+            .call(ToolCallContext::default(), call, Default::default())
             .await
             .unwrap();
         insta::assert_snapshot!(result);
@@ -321,7 +318,7 @@ mod test {
         test::time::advance(Duration::from_secs(305)).await;
 
         let result = service
-            .call(ToolCallContext::default(), call, None)
+            .call(ToolCallContext::default(), call, Default::default())
             .await
             .unwrap();
 

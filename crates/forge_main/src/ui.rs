@@ -3,8 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, Workflow,
-    API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, API,
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
@@ -46,11 +45,6 @@ impl From<PartialEvent> for Event {
     }
 }
 
-struct InitConversation {
-    conversation_id: ConversationId,
-    workflow: Workflow,
-}
-
 pub struct UI<F> {
     state: UIState,
     api: Arc<F>,
@@ -73,7 +67,7 @@ impl<F: API> UI<F> {
 
         self.api
             .set_variable(
-                &conversation.conversation_id,
+                &conversation,
                 "mode".to_string(),
                 Value::from(mode.to_string()),
             )
@@ -269,27 +263,16 @@ impl<F: API> UI<F> {
         let event: PartialEvent = serde_json::from_str(&json)?;
 
         // Create the chat request with the event
-        let chat = ChatRequest::new(
-            event.into(),
-            conversation.conversation_id,
-            conversation.workflow,
-        );
+        let chat = ChatRequest::new(event.into(), conversation);
 
         // Process the event
         let mut stream = self.api.chat(chat).await?;
         self.handle_chat_stream(&mut stream).await
     }
 
-    async fn init_conversation(&mut self) -> Result<InitConversation> {
-        match self
-            .state
-            .conversation_id
-            .as_ref()
-            .zip(self.state.workflow.as_ref())
-        {
-            Some((id, workflow)) => {
-                Ok(InitConversation { conversation_id: id.clone(), workflow: workflow.clone() })
-            }
+    async fn init_conversation(&mut self) -> Result<ConversationId> {
+        match self.state.conversation_id.as_ref() {
+            Some(id) => Ok(id.clone()),
             None => {
                 let config = self.api.load(self.cli.workflow.as_deref()).await?;
 
@@ -313,14 +296,11 @@ impl<F: API> UI<F> {
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
                     self.api.upsert_conversation(conversation).await?;
-                    Ok(InitConversation { conversation_id, workflow: config })
+                    Ok(conversation_id)
                 } else {
                     let conversation_id = self.api.init(config.clone()).await?;
                     self.state.conversation_id = Some(conversation_id.clone());
-                    Ok(InitConversation {
-                        conversation_id: conversation_id.clone(),
-                        workflow: config,
-                    })
+                    Ok(conversation_id)
                 }
             }
         }
@@ -338,7 +318,7 @@ impl<F: API> UI<F> {
         };
 
         // Create the chat request with the event
-        let chat = ChatRequest::new(event, conversation.conversation_id, conversation.workflow);
+        let chat = ChatRequest::new(event, conversation);
 
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
@@ -446,7 +426,7 @@ impl<F: API> UI<F> {
 
     async fn dispatch_event(&mut self, event: Event) -> Result<()> {
         let conversation = self.init_conversation().await?;
-        let chat = ChatRequest::new(event, conversation.conversation_id, conversation.workflow);
+        let chat = ChatRequest::new(event, conversation);
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),

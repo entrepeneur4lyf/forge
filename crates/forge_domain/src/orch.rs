@@ -76,14 +76,13 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         tool_calls: &[ToolCallFull],
-        workflow: &Workflow,
     ) -> anyhow::Result<Vec<ToolResult>> {
         let mut tool_results = Vec::new();
 
         for tool_call in tool_calls.iter() {
             self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
                 .await?;
-            let tool_result = self.execute_tool(agent, tool_call, workflow).await?;
+            let tool_result = self.execute_tool(agent, tool_call).await?;
             tool_results.push(tool_result.clone());
             self.send(agent, ChatResponse::ToolCallEnd(tool_result))
                 .await?;
@@ -106,26 +105,20 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    async fn init_default_tool_definitions(
-        &self,
-        workflow: &Workflow,
-    ) -> anyhow::Result<Vec<ToolDefinition>> {
+    async fn init_default_tool_definitions(&self) -> anyhow::Result<Vec<ToolDefinition>> {
         self.services
             .tool_service()
-            .list(Some(workflow.clone()))
+            .list(self.conversation.read().await.mcp.clone())
             .await
     }
 
-    async fn init_tool_definitions(
-        &self,
-        agent: &Agent,
-        workflow: &Workflow,
-    ) -> anyhow::Result<Vec<ToolDefinition>> {
+    async fn init_tool_definitions(&self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
         let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
-        let mut forge_tools = self.init_default_tool_definitions(workflow).await?;
+        let mut forge_tools = self.init_default_tool_definitions().await?;
 
         // Adding Event tool to the list of tool definitions
         forge_tools.push(Event::tool_definition());
+
         Ok(forge_tools
             .into_iter()
             // TODO: need a better way to avoid filtering mcp tools
@@ -135,12 +128,8 @@ impl<A: Services> Orchestrator<A> {
             .collect::<Vec<_>>())
     }
 
-    async fn init_agent_context(
-        &self,
-        agent: &Agent,
-        workflow: &Workflow,
-    ) -> anyhow::Result<Context> {
-        let tool_defs = self.init_tool_definitions(agent, workflow).await?;
+    async fn init_agent_context(&self, agent: &Agent) -> anyhow::Result<Context> {
+        let tool_defs = self.init_tool_definitions(agent).await?;
 
         // Use the agent's tool_supported flag directly instead of querying the provider
         let tool_supported = agent.tool_supported.unwrap_or_default();
@@ -233,14 +222,13 @@ impl<A: Services> Orchestrator<A> {
         Ok(ChatCompletionResult { content, tool_calls, usage: request_usage })
     }
 
-    pub async fn dispatch_spawned(&self, event: Event, workflow: &Workflow) -> anyhow::Result<()> {
+    pub async fn dispatch_spawned(&self, event: Event) -> anyhow::Result<()> {
         let this = self.clone();
-        let workflow = workflow.clone();
-        let _ = tokio::spawn(async move { this.dispatch(event, &workflow).await }).await?;
+        let _ = tokio::spawn(async move { this.dispatch(event).await }).await?;
         Ok(())
     }
 
-    pub async fn dispatch(&self, event: Event, workflow: &Workflow) -> anyhow::Result<()> {
+    pub async fn dispatch(&self, event: Event) -> anyhow::Result<()> {
         let inactive_agents = {
             let mut conversation = self.conversation.write().await;
             debug!(
@@ -253,14 +241,10 @@ impl<A: Services> Orchestrator<A> {
         };
 
         // Execute all initialization futures in parallel
-        join_all(
-            inactive_agents
-                .iter()
-                .map(|id| self.wake_agent(id, workflow)),
-        )
-        .await
-        .into_iter()
-        .collect::<anyhow::Result<Vec<()>>>()?;
+        join_all(inactive_agents.iter().map(|id| self.wake_agent(id)))
+            .await
+            .into_iter()
+            .collect::<anyhow::Result<Vec<()>>>()?;
 
         Ok(())
     }
@@ -270,12 +254,11 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         tool_call: &ToolCallFull,
-        workflow: &Workflow,
     ) -> anyhow::Result<ToolResult> {
         if let Some(event) = Event::parse(tool_call) {
             self.send(agent, ChatResponse::Event(event.clone())).await?;
 
-            self.dispatch_spawned(event, workflow).await?;
+            self.dispatch_spawned(event).await?;
             Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
         } else {
             self.services
@@ -285,7 +268,7 @@ impl<A: Services> Orchestrator<A> {
                         .sender(self.sender.clone())
                         .agent_id(agent.id.clone()),
                     tool_call.clone(),
-                    Some(workflow.clone()),
+                    self.conversation.read().await.mcp.clone(),
                 )
                 .await
         }
@@ -325,12 +308,7 @@ impl<A: Services> Orchestrator<A> {
     }
 
     // Create a helper method with the core functionality
-    async fn init_agent(
-        &self,
-        agent_id: &AgentId,
-        event: &Event,
-        workflow: &Workflow,
-    ) -> anyhow::Result<()> {
+    async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
         let variables = &conversation.variables;
         debug!(
@@ -342,11 +320,11 @@ impl<A: Services> Orchestrator<A> {
         let agent = conversation.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            self.init_agent_context(agent, workflow).await?
+            self.init_agent_context(agent).await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => self.init_agent_context(agent, workflow).await?,
+                None => self.init_agent_context(agent).await?,
             }
         };
 
@@ -416,9 +394,7 @@ impl<A: Services> Orchestrator<A> {
                 .await?;
 
             // Get all tool results using the helper function
-            let tool_results = self
-                .get_all_tool_results(agent, &tool_calls, workflow)
-                .await?;
+            let tool_results = self.get_all_tool_results(agent, &tool_calls).await?;
 
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
@@ -442,6 +418,7 @@ impl<A: Services> Orchestrator<A> {
     async fn set_user_prompt(
         &self,
         mut context: Context,
+
         agent: &Agent,
         variables: &HashMap<String, Value>,
         event: &Event,
@@ -465,14 +442,14 @@ impl<A: Services> Orchestrator<A> {
         Ok(context)
     }
 
-    async fn wake_agent(&self, agent_id: &AgentId, workflow: &Workflow) -> anyhow::Result<()> {
+    async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
         while let Some(event) = {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
         } {
             RetryIf::spawn(
                 self.retry_strategy.clone().map(jitter),
-                || self.init_agent(agent_id, &event, workflow),
+                || self.init_agent(agent_id, &event),
                 is_parse_error,
             )
             .await

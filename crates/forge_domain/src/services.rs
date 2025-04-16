@@ -8,8 +8,8 @@ use tokio::task::JoinError;
 
 use crate::{
     Agent, Attachment, ChatCompletionMessage, Compact, Context, Conversation, ConversationId,
-    Environment, Event, EventContext, Model, ModelId, ResultStream, SystemContext, Template,
-    ToolCallContext, ToolCallFull, ToolDefinition, ToolResult, Workflow,
+    Environment, Event, EventContext, McpConfig, Model, ModelId, ResultStream, SystemContext,
+    Template, ToolCallContext, ToolCallFull, ToolDefinition, ToolResult, Workflow,
 };
 
 pub enum RunnableService {
@@ -52,9 +52,9 @@ pub trait ToolService: Send + Sync {
         &self,
         context: ToolCallContext,
         call: ToolCallFull,
-        workflow: Option<Workflow>,
+        workflow: HashMap<String, McpConfig>,
     ) -> anyhow::Result<ToolResult>;
-    async fn list(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>>;
+    async fn list(&self, mcp: HashMap<String, McpConfig>) -> anyhow::Result<Vec<ToolDefinition>>;
     fn usage_prompt(&self) -> String;
 }
 

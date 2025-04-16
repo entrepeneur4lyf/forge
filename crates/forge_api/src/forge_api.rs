@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -44,8 +45,8 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         self.suggestion_service.suggestions().await
     }
 
-    async fn tools(&self, workflow: Option<Workflow>) -> anyhow::Result<Vec<ToolDefinition>> {
-        self.app.tool_service().list(workflow).await
+    async fn tools(&self, mcp: HashMap<String, McpConfig>) -> anyhow::Result<Vec<ToolDefinition>> {
+        self.app.tool_service().list(mcp).await
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
