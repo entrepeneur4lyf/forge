@@ -115,7 +115,7 @@ impl ForgeMcpService {
             .ok_or_else(|| anyhow::anyhow!("URL is required for HTTP server"))?;
         let transport = rmcp::transport::SseTransport::start(url)
             .await
-            .map_err(|e| anyhow::anyhow!("Failed to start server: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("Failed to connect server: {e}"))?;
 
         let client = Self::client_info()
             .serve(transport)
@@ -162,7 +162,7 @@ impl ForgeMcpService {
 
                 for i in http_results.into_iter().flatten() {
                     if let Err(e) = i {
-                        tracing::error!("Failed to start server: {e}");
+                        tracing::error!("Failed to connect server: {e}");
                     }
                 }
                 Ok(())
